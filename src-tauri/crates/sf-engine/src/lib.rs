@@ -5,11 +5,14 @@
 
 pub mod classify;
 pub mod config;
+pub mod duplicates;
 pub mod fsutil;
 pub mod history;
 pub mod mover;
 pub mod plan;
+pub mod renamer;
 pub mod rules;
+pub mod search;
 pub mod types;
 pub mod watcher;
 

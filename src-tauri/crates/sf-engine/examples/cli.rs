@@ -6,9 +6,10 @@
 //!   sf-cli undo                          Undo the most recent batch
 //!   sf-cli history                       Show recorded operations
 //!   sf-cli watch <folder> [...]          Watch folders and auto-organize
+//!   sf-cli dupes <folder>                Find duplicate files (size + SHA-256)
+//!   sf-cli search <folder> <query>       Search files (name/ext/type/size/date)
+//!   sf-cli rename [--apply] <folder> <template>   Preview or apply a rename template
 //!   sf-cli demo                          Build a demo tree in a tempdir and plan it
-//!
-//! Later milestones add: dupes / search.
 
 use sf_engine::mover::{self, AskResolution};
 use sf_engine::types::{PlanMode, PlanStatus, PlannedOp};
@@ -18,7 +19,7 @@ use std::path::PathBuf;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
-        eprintln!("usage: sf-cli <plan|organize|undo|history|demo> [paths...]");
+        eprintln!("usage: sf-cli <plan|organize|undo|history|watch|dupes|search|rename|demo> [args...]");
         std::process::exit(2);
     }
     let result = match args[0].as_str() {
@@ -27,6 +28,9 @@ fn main() {
         "undo" => cmd_undo(),
         "history" => cmd_history(),
         "watch" => cmd_watch(&args[1..]),
+        "dupes" => cmd_dupes(&args[1..]),
+        "search" => cmd_search(&args[1..]),
+        "rename" => cmd_rename(&args[1..]),
         "demo" => cmd_demo(),
         other => Err(format!("unknown command: {other}")),
     };
@@ -64,7 +68,9 @@ fn cmd_organize(paths: &[String]) -> Result<(), String> {
     print!("Organize {} files? [y/N] ", moves);
     std::io::stdout().flush().map_err(|e| e.to_string())?;
     let mut answer = String::new();
-    std::io::stdin().read_line(&mut answer).map_err(|e| e.to_string())?;
+    std::io::stdin()
+        .read_line(&mut answer)
+        .map_err(|e| e.to_string())?;
     if !answer.trim().eq_ignore_ascii_case("y") {
         println!("cancelled.");
         return Ok(());
@@ -147,6 +153,109 @@ fn load_config() -> sf_engine::Config {
     sf_engine::Config::load(&data_dir)
 }
 
+fn cmd_dupes(paths: &[String]) -> Result<(), String> {
+    let folder = paths.first().ok_or("dupes needs a folder")?;
+    let groups = sf_engine::duplicates::find_duplicates(&PathBuf::from(folder))
+        .map_err(|e| e.to_string())?;
+    if groups.is_empty() {
+        println!("no duplicates found.");
+        return Ok(());
+    }
+    for g in &groups {
+        println!(
+            "\n{} ({} files, sha256 {}…)",
+            human_size(g.size_bytes),
+            g.files.len(),
+            &g.sha256[..16]
+        );
+        for f in &g.files {
+            let when = f
+                .modified
+                .map(|t| {
+                    chrono::DateTime::<chrono::Local>::from(t)
+                        .format("%Y-%m-%d %H:%M")
+                        .to_string()
+                })
+                .unwrap_or_else(|| "?".into());
+            println!("    {}  ({})", f.path.display(), when);
+        }
+    }
+    println!(
+        "\n{} duplicate group(s). Nothing was deleted or moved — decide yourself.",
+        groups.len()
+    );
+    Ok(())
+}
+
+fn cmd_search(args: &[String]) -> Result<(), String> {
+    if args.len() < 2 {
+        return Err("usage: search <folder> <query>".into());
+    }
+    let folder = PathBuf::from(&args[0]);
+    let query = args[1..].join(" ");
+    let hits = sf_engine::search::search(&folder, &query).map_err(|e| e.to_string())?;
+    for h in &hits {
+        println!("    {:>10}  {}", human_size(h.size_bytes), h.path.display());
+    }
+    println!("{} hit(s).", hits.len());
+    Ok(())
+}
+
+fn cmd_rename(args: &[String]) -> Result<(), String> {
+    let apply = args.first().map(|a| a == "--apply").unwrap_or(false);
+    let rest = if apply { &args[1..] } else { args };
+    if rest.len() < 2 {
+        return Err("usage: rename [--apply] <folder> <template>".into());
+    }
+    let folder = PathBuf::from(&rest[0]);
+    let template = &rest[1];
+    let mut paths: Vec<PathBuf> = std::fs::read_dir(&folder)
+        .map_err(|e| e.to_string())?
+        .flatten()
+        .map(|e| e.path())
+        .filter(|p| p.is_file())
+        .collect();
+    paths.sort();
+    let ops = sf_engine::renamer::plan_rename(&paths, template).map_err(|e| e.to_string())?;
+    for op in &ops {
+        if op.skipped {
+            println!(
+                "✗ {}  ({})",
+                op.src.display(),
+                op.reason.as_deref().unwrap_or("?")
+            );
+        } else {
+            println!("→ {}  {}", op.src.display(), op.dst.display());
+        }
+    }
+    let renames = ops.iter().filter(|o| !o.skipped && o.src != o.dst).count();
+    if !apply {
+        println!(
+            "\n{} file(s) would be renamed. Re-run with --apply.",
+            renames
+        );
+        return Ok(());
+    }
+    let (n, failed) = sf_engine::renamer::apply_rename(&ops);
+    println!("\nrenamed {}, {} failed.", n, failed.len());
+    for (p, e) in &failed {
+        println!("  FAILED {}: {e}", p.display());
+    }
+    Ok(())
+}
+
+fn human_size(bytes: u64) -> String {
+    if bytes >= 1_000_000_000 {
+        format!("{:.1} GB", bytes as f64 / 1_000_000_000.0)
+    } else if bytes >= 1_000_000 {
+        format!("{:.1} MB", bytes as f64 / 1_000_000.0)
+    } else if bytes >= 1_000 {
+        format!("{:.1} KB", bytes as f64 / 1_000.0)
+    } else {
+        format!("{bytes} B")
+    }
+}
+
 fn cmd_watch(paths: &[String]) -> Result<(), String> {
     if paths.is_empty() {
         return Err("watch needs at least one folder".into());
@@ -171,8 +280,12 @@ fn cmd_watch(paths: &[String]) -> Result<(), String> {
             Ok(batch) => {
                 // Re-read config each batch so rule edits apply live.
                 let cfg = load_config();
-                let plan =
-                    sf_engine::plan_inputs(&batch, &cfg.rules, &cfg.settings, PlanMode::WatchFolder);
+                let plan = sf_engine::plan_inputs(
+                    &batch,
+                    &cfg.rules,
+                    &cfg.settings,
+                    PlanMode::WatchFolder,
+                );
                 print_plan(&plan);
                 if cfg.settings.auto_organize && !cfg.settings.paused {
                     let result = mover::execute(
