@@ -172,6 +172,7 @@ mod tests {
             modified: Utc.with_ymd_and_hms(2026, 9, 15, 8, 30, 0).unwrap(),
             is_symlink: false,
             is_dir: false,
+            taken: None,
         }
     }
 
@@ -187,6 +188,7 @@ mod tests {
             kind,
             conditions,
             destination: dest,
+            rename: None,
         }
     }
 

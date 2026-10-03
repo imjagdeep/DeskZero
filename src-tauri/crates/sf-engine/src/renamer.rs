@@ -1,8 +1,9 @@
 //! Rename templates: deterministic, preview-first file renaming.
 //!
 //! Supported tokens:
-//!   {date}           modification date, YYYY-MM-DD
-//!   {time}           modification time, HH-MM-SS
+//!   {date}           date taken (photos) or modified date, YYYY-MM-DD
+//!   {year} {month} {day}  parts of that date
+//!   {time}           modification time (local), HH-MM-SS
 //!   {original_name}  full original file name (stem + extension)
 //!   {original_stem}  name without the extension
 //!   {ext}            extension without the dot (may be empty)
@@ -11,9 +12,8 @@
 //! Everything else is literal text. The template must produce a name;
 //! applying is a separate step so the UI can always preview first.
 
-use crate::fsutil::{dest_exists, paths_equal};
+use crate::fsutil::{free_target, paths_equal};
 use crate::plan::file_meta;
-use std::ffi::OsStr;
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -30,6 +30,9 @@ pub struct RenameOp {
 
 pub const KNOWN_TOKENS: &[&str] = &[
     "date",
+    "year",
+    "month",
+    "day",
     "time",
     "original_name",
     "original_stem",
@@ -53,9 +56,13 @@ pub fn render_template(template: &str, path: &Path, counter: usize) -> io::Resul
         .map(|e| e.to_string_lossy().into_owned())
         .unwrap_or_default();
 
-    let modified: chrono::DateTime<chrono::Utc> = meta.modified;
+    let date = meta.sort_date();
+    let modified = meta.modified.with_timezone(&chrono::Local);
     let mut out = template.to_string();
-    out = out.replace("{date}", &modified.format("%Y-%m-%d").to_string());
+    out = out.replace("{date}", &date.format("%Y-%m-%d").to_string());
+    out = out.replace("{year}", &date.format("%Y").to_string());
+    out = out.replace("{month}", &date.format("%m").to_string());
+    out = out.replace("{day}", &date.format("%d").to_string());
     out = out.replace("{time}", &modified.format("%H-%M-%S").to_string());
     out = out.replace("{original_name}", &file_name);
     out = out.replace("{original_stem}", &stem);
@@ -162,37 +169,6 @@ pub fn apply_rename(ops: &[RenameOp]) -> (usize, Vec<(PathBuf, String)>) {
     (renamed, failed)
 }
 
-/// First free name for `path`, treating existing files and targets claimed
-/// earlier in this batch as taken. Same "name (n).ext" scheme as
-/// `fsutil::probe_free_name`.
-fn free_target(path: &Path, claimed: &[PathBuf]) -> io::Result<PathBuf> {
-    let taken = |p: &Path| -> io::Result<bool> {
-        Ok(dest_exists(p)? || claimed.iter().any(|c| paths_equal(c, p)))
-    };
-    if !taken(path)? {
-        return Ok(path.to_path_buf());
-    }
-    let stem = path
-        .file_stem()
-        .map(|s| s.to_string_lossy().into_owned())
-        .unwrap_or_default();
-    let ext = path.extension().map(|e| e.to_string_lossy().into_owned());
-    for n in 1..1000 {
-        let candidate_name = match &ext {
-            Some(ext) if !ext.is_empty() => format!("{stem} ({n}).{ext}"),
-            _ => format!("{stem} ({n})"),
-        };
-        let candidate = path.with_file_name(OsStr::new(&candidate_name));
-        if !taken(&candidate)? {
-            return Ok(candidate);
-        }
-    }
-    Err(io::Error::new(
-        io::ErrorKind::AlreadyExists,
-        format!("could not find a free name for {}", path.display()),
-    ))
-}
-
 fn is_symlink(path: &Path) -> bool {
     fs::symlink_metadata(path)
         .map(|m| m.file_type().is_symlink())
@@ -210,7 +186,7 @@ mod tests {
         let p = tmp.path().join("IMG_1234.jpg");
         fs::write(&p, b"x").unwrap();
         let name = render_template("{date}_{original_name}", &p, 1).unwrap();
-        let today = chrono::Utc::now().format("%Y-%m-%d");
+        let today = chrono::Local::now().format("%Y-%m-%d");
         assert_eq!(name, format!("{today}_IMG_1234.jpg"));
     }
 
@@ -239,9 +215,9 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let p = tmp.path().join("a.txt");
         fs::write(&p, b"x").unwrap();
-        assert!(render_template("{year}_{original_name}", &p, 1)
+        assert!(render_template("{season}_{original_name}", &p, 1)
             .unwrap()
-            .starts_with("{year}_"));
+            .starts_with("{season}_"));
     }
 
     #[test]

@@ -96,6 +96,19 @@ pub fn undo(
     history_path: &Path,
     op_counter: &mut u64,
 ) -> io::Result<HistoryEntry> {
+    undo_with_cleanup(entry, history_path, op_counter, &[])
+}
+
+/// Undo, then remove folders the batch left empty (e.g. `Images/2026/10`).
+/// Walks up from each moved-out file's folder, removing only empty folders,
+/// and never removes a folder in `protect` (Super Folder, watch folders) or
+/// any folder that contains the restored file.
+pub fn undo_with_cleanup(
+    entry: &HistoryEntry,
+    history_path: &Path,
+    op_counter: &mut u64,
+    protect: &[PathBuf],
+) -> io::Result<HistoryEntry> {
     let mut restored: Vec<HistoryItem> = Vec::new();
     let mut failed: Vec<FailedItem> = Vec::new();
 
@@ -123,6 +136,13 @@ pub fn undo(
                 src: item.dst.clone(),
                 error: format!("quarantine restore failed: {e}"),
             }),
+        }
+    }
+
+    if !protect.is_empty() {
+        for item in &restored {
+            // item.src is where the file was (now empty spot), item.dst where it is again.
+            remove_empty_parents(&item.src, &item.dst, protect);
         }
     }
 
@@ -229,6 +249,20 @@ fn move_raw(src: &Path, dst: &Path) -> io::Result<()> {
                 Err(rename_err)
             }
         }
+    }
+}
+
+fn remove_empty_parents(vacated: &Path, restored_to: &Path, protect: &[PathBuf]) {
+    let mut dir = vacated.parent();
+    for _ in 0..4 {
+        let Some(d) = dir else { return };
+        let protected =
+            protect.iter().any(|p| crate::fsutil::paths_equal(p, d)) || restored_to.starts_with(d);
+        // remove_dir only succeeds on an empty folder: never deletes content.
+        if protected || fs::remove_dir(d).is_err() {
+            return;
+        }
+        dir = d.parent();
     }
 }
 

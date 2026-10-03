@@ -54,6 +54,17 @@ pub fn save_settings(
         std::fs::create_dir_all(sf).map_err(|e| format!("cannot create {}: {e}", sf.display()))?;
     }
     apply_autostart(&app, settings.start_with_system)?;
+    let (menu_was, roots_were) = {
+        let g = state.lock();
+        (
+            g.cfg.settings.context_menu,
+            g.cfg.settings.search_roots.clone(),
+        )
+    };
+    if menu_was != settings.context_menu {
+        crate::shell::set_context_menu(settings.context_menu)?;
+    }
+    let roots_changed = roots_were != settings.search_roots;
     {
         let mut g = state.lock();
         g.cfg.settings = settings;
@@ -63,6 +74,9 @@ pub fn save_settings(
         organizer::scan_super_folder(&mut g);
     }
     organizer::restart_watcher(&app);
+    if roots_changed {
+        crate::finder::rebuild(&app);
+    }
     let _ = app.emit("pending-changed", ());
     Ok(())
 }
@@ -269,8 +283,9 @@ pub async fn undo_batch(app: AppHandle, id: String) -> CmdResult<RunSummary> {
             .find(|e| e.id == id && e.kind == HistoryKind::Move)
             .ok_or("that batch is no longer in the history")?;
         let mut counter = g.counter;
-        let undo =
-            sf_engine::mover::undo(&entry, &hist, &mut counter).map_err(|e| e.to_string())?;
+        let protect = protected_folders(&g.cfg.settings);
+        let undo = sf_engine::mover::undo_with_cleanup(&entry, &hist, &mut counter, &protect)
+            .map_err(|e| e.to_string())?;
         g.counter = counter;
         Ok(RunSummary {
             moved: undo.items.len(),
@@ -514,7 +529,136 @@ pub fn import_rules(
     Ok(n)
 }
 
+/// Folders undo must never remove even when empty.
+fn protected_folders(s: &Settings) -> Vec<PathBuf> {
+    let mut v: Vec<PathBuf> = s.super_folder.iter().cloned().collect();
+    v.extend(s.watch_folders.iter().map(|w| w.path.clone()));
+    v
+}
+
+// ---------- tidy: conflicts, duplicates, cleanup, storage ----------
+
+#[derive(serde::Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum Decision {
+    KeepBoth,
+    Replace,
+    Skip,
+}
+
+/// Apply the user's choices for "a file with this name exists" (Ask
+/// policy). Keep both picks a free "name (1)" that no other op claims.
+#[tauri::command]
+pub fn resolve_decisions(
+    mut plan: Vec<PlannedOp>,
+    decisions: Vec<(PathBuf, Decision)>,
+) -> CmdResult<Vec<PlannedOp>> {
+    use sf_engine::types::PlanStatus;
+    let mut claimed: Vec<PathBuf> = plan
+        .iter()
+        .filter(|o| matches!(o.status, PlanStatus::Move { .. }))
+        .map(|o| o.dst.clone())
+        .collect();
+    for op in plan.iter_mut() {
+        if op.status != PlanStatus::NeedsDecision {
+            continue;
+        }
+        let choice = decisions
+            .iter()
+            .find(|(src, _)| *src == op.src)
+            .map(|(_, d)| d);
+        match choice {
+            Some(Decision::Replace) => op.status = PlanStatus::Move { replace: true },
+            Some(Decision::Skip) | None => {
+                op.status = PlanStatus::Skip {
+                    reason: "skipped by you".into(),
+                }
+            }
+            Some(Decision::KeepBoth) => {
+                let free =
+                    sf_engine::fsutil::free_target(&op.dst, &claimed).map_err(|e| e.to_string())?;
+                claimed.push(free.clone());
+                op.dst = free;
+                op.status = PlanStatus::Move { replace: false };
+            }
+        }
+    }
+    Ok(plan)
+}
+
+#[tauri::command]
+pub async fn plan_move_into(files: Vec<PathBuf>, dest: PathBuf) -> CmdResult<Vec<PlannedOp>> {
+    blocking(move || Ok(sf_engine::tidy::plan_move_into(&files, &dest))).await
+}
+
+#[tauri::command]
+pub async fn plan_old_files(
+    folder: PathBuf,
+    days: u32,
+    dest: PathBuf,
+) -> CmdResult<Vec<PlannedOp>> {
+    blocking(move || {
+        sf_engine::tidy::plan_old_files(&folder, days, &dest)
+            .map_err(|e| format!("cannot read {}: {e}", folder.display()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn storage_overview(app: AppHandle) -> CmdResult<Vec<sf_engine::tidy::FolderUsage>> {
+    let root = app
+        .state::<AppState>()
+        .lock()
+        .cfg
+        .settings
+        .super_folder
+        .clone();
+    let Some(root) = root else {
+        return Ok(Vec::new());
+    };
+    blocking(move || sf_engine::tidy::storage_overview(&root).map_err(|e| e.to_string())).await
+}
+
+// ---------- universal search ----------
+
+#[tauri::command]
+pub fn universal_search(
+    finder: State<'_, crate::finder::Finder>,
+    query: String,
+) -> Vec<sf_engine::search_index::Entry> {
+    finder.query(&query, 12)
+}
+
+#[tauri::command]
+pub fn search_info(app: AppHandle) -> crate::finder::FinderInfo {
+    crate::finder::info(&app)
+}
+
+#[tauri::command]
+pub fn rebuild_search(app: AppHandle) {
+    crate::finder::rebuild(&app);
+}
+
+#[tauri::command]
+pub fn launch(app: AppHandle, path: PathBuf) -> CmdResult<()> {
+    if !path.exists() {
+        return Err(format!("{} no longer exists", path.display()));
+    }
+    crate::shell::launch(&app, &path)
+}
+
 // ---------- shell ----------
+
+#[tauri::command]
+pub fn platform() -> &'static str {
+    std::env::consts::OS
+}
+
+/// Paths passed with `--organize` before the window was ready.
+#[tauri::command]
+pub fn take_startup_paths(state: State<'_, AppState>) -> Vec<PathBuf> {
+    std::mem::take(&mut state.lock().startup_paths)
+}
 
 #[tauri::command]
 pub fn open_folder(app: AppHandle, path: PathBuf) -> CmdResult<()> {

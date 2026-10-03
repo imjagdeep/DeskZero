@@ -136,3 +136,27 @@ export const SparkleIcon = (p: IconProps) => (
     <path d="M12 3.5 13.9 9 19.5 11l-5.6 2L12 18.5 10.1 13 4.5 11l5.6-2Z" />
   </Svg>
 );
+
+export const AppGridIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="4" y="4" width="6.5" height="6.5" rx="1.6" />
+    <rect x="13.5" y="4" width="6.5" height="6.5" rx="1.6" />
+    <rect x="4" y="13.5" width="6.5" height="6.5" rx="1.6" />
+    <rect x="13.5" y="13.5" width="6.5" height="6.5" rx="1.6" />
+  </Svg>
+);
+
+export const FileIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14 3.5H7.2A1.7 1.7 0 0 0 5.5 5.2v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8Z" />
+    <path d="M14 3.5V8h4.5" />
+  </Svg>
+);
+
+export const BroomIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19.5 4.5 12 12" />
+    <path d="M12.8 11.2 9 9.5c-1.6 1.2-4 4.6-5 8.5l1.6 1.6c3.9-1 7.3-3.4 8.5-5Z" />
+    <path d="m7 15 2 2" />
+  </Svg>
+);

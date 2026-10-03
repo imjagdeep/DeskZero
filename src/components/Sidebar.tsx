@@ -1,6 +1,7 @@
 import logo from "../assets/logo.png";
 import { useStatus } from "../lib/store";
 import {
+  BroomIcon,
   DuplicatesIcon,
   HistoryIcon,
   HomeIcon,
@@ -11,7 +12,16 @@ import {
   WatchIcon,
 } from "./Icons";
 
-export type Page = "home" | "watch" | "rules" | "search" | "duplicates" | "rename" | "history" | "settings";
+export type Page =
+  | "home"
+  | "watch"
+  | "rules"
+  | "search"
+  | "duplicates"
+  | "rename"
+  | "cleanup"
+  | "history"
+  | "settings";
 
 type Item = { page: Page; label: string; Icon: (p: { size?: number }) => React.ReactElement };
 
@@ -30,6 +40,7 @@ const GROUPS: { title: string; items: Item[] }[] = [
       { page: "search", label: "Search", Icon: SearchIcon },
       { page: "duplicates", label: "Duplicates", Icon: DuplicatesIcon },
       { page: "rename", label: "Rename", Icon: RenameIcon },
+      { page: "cleanup", label: "Cleanup", Icon: BroomIcon },
     ],
   },
   {

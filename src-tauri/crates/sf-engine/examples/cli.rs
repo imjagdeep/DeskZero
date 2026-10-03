@@ -9,6 +9,7 @@
 //!   sf-cli dupes <folder>                Find duplicate files (size + SHA-256)
 //!   sf-cli search <folder> <query>       Search files (name/ext/type/size/date)
 //!   sf-cli rename [--apply] <folder> <template>   Preview or apply a rename template
+//!   sf-cli find <query>                  Universal search over your usual folders + apps
 //!   sf-cli demo                          Build a demo tree in a tempdir and plan it
 
 use sf_engine::mover::{self, AskResolution};
@@ -20,7 +21,7 @@ fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
         eprintln!(
-            "usage: sf-cli <plan|organize|undo|history|watch|dupes|search|rename|demo> [args...]"
+            "usage: sf-cli <plan|organize|undo|history|watch|dupes|search|rename|find|demo> [args...]"
         );
         std::process::exit(2);
     }
@@ -33,6 +34,7 @@ fn main() {
         "dupes" => cmd_dupes(&args[1..]),
         "search" => cmd_search(&args[1..]),
         "rename" => cmd_rename(&args[1..]),
+        "find" => cmd_find(&args[1..]),
         "demo" => cmd_demo(),
         other => Err(format!("unknown command: {other}")),
     };
@@ -242,6 +244,21 @@ fn cmd_rename(args: &[String]) -> Result<(), String> {
     println!("\nrenamed {}, {} failed.", n, failed.len());
     for (p, e) in &failed {
         println!("  FAILED {}: {e}", p.display());
+    }
+    Ok(())
+}
+
+fn cmd_find(args: &[String]) -> Result<(), String> {
+    use sf_engine::search_index::{default_app_roots, default_file_roots, Index};
+    let started = std::time::Instant::now();
+    let idx = Index::build(&default_file_roots(), &default_app_roots(), 400_000);
+    println!("indexed {} entries in {:?}", idx.len(), started.elapsed());
+    let query = args.join(" ");
+    let t = std::time::Instant::now();
+    let hits = idx.query(&query, 10);
+    println!("query {:?} took {:?}", query, t.elapsed());
+    for h in hits {
+        println!("    {:?}  {}  ({})", h.kind, h.name, h.path.display());
     }
     Ok(())
 }

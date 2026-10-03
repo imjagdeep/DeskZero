@@ -4,6 +4,10 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
   Attention,
+  Decision,
+  FinderInfo,
+  FolderUsage,
+  SearchEntry,
   DupGroup,
   FileInfo,
   HistoryEntry,
@@ -36,6 +40,18 @@ export const api = {
     invoke<RunSummary>("rename_apply", { folder, template }),
   exportRules: (path: string) => invoke<number>("export_rules", { path }),
   importRules: (path: string, replace: boolean) => invoke<number>("import_rules", { path, replace }),
+  resolveDecisions: (plan: PlannedOp[], decisions: [string, Decision][]) =>
+    invoke<PlannedOp[]>("resolve_decisions", { plan, decisions }),
+  planMoveInto: (files: string[], dest: string) => invoke<PlannedOp[]>("plan_move_into", { files, dest }),
+  planOldFiles: (folder: string, days: number, dest: string) =>
+    invoke<PlannedOp[]>("plan_old_files", { folder, days, dest }),
+  storageOverview: () => invoke<FolderUsage[]>("storage_overview"),
+  universalSearch: (query: string) => invoke<SearchEntry[]>("universal_search", { query }),
+  searchInfo: () => invoke<FinderInfo>("search_info"),
+  rebuildSearch: () => invoke<void>("rebuild_search"),
+  launch: (path: string) => invoke<void>("launch", { path }),
+  platform: () => invoke<string>("platform"),
+  takeStartupPaths: () => invoke<string[]>("take_startup_paths"),
   openFolder: (path: string) => invoke<void>("open_folder", { path }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
 };

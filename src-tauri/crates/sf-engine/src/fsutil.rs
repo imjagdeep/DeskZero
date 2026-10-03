@@ -128,6 +128,79 @@ pub fn is_hidden_or_system(path: &Path) -> bool {
     false
 }
 
+/// First free name for `path`, treating existing files and targets claimed
+/// earlier in this batch as taken. Same "name (n).ext" scheme as
+/// `probe_free_name`.
+pub fn free_target(path: &Path, claimed: &[PathBuf]) -> io::Result<PathBuf> {
+    let taken = |p: &Path| -> io::Result<bool> {
+        Ok(dest_exists(p)? || claimed.iter().any(|c| paths_equal(c, p)))
+    };
+    if !taken(path)? {
+        return Ok(path.to_path_buf());
+    }
+    let stem = path
+        .file_stem()
+        .map(|s| s.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let ext = path.extension().map(|e| e.to_string_lossy().into_owned());
+    for n in 1..1000 {
+        let candidate_name = match &ext {
+            Some(ext) if !ext.is_empty() => format!("{stem} ({n}).{ext}"),
+            _ => format!("{stem} ({n})"),
+        };
+        let candidate = path.with_file_name(OsStr::new(&candidate_name));
+        if !taken(&candidate)? {
+            return Ok(candidate);
+        }
+    }
+    Err(io::Error::new(
+        io::ErrorKind::AlreadyExists,
+        format!("could not find a free name for {}", path.display()),
+    ))
+}
+
+/// Case-insensitive wildcard match on a file name: `*` = any run of
+/// characters, `?` = one character. Used by the ignore list.
+pub fn wildcard_match(pattern: &str, name: &str) -> bool {
+    let p: Vec<char> = pattern.to_lowercase().chars().collect();
+    let n: Vec<char> = name.to_lowercase().chars().collect();
+    // Iterative matcher with backtracking to the last `*`.
+    let (mut pi, mut ni) = (0usize, 0usize);
+    let (mut star, mut mark) = (None::<usize>, 0usize);
+    while ni < n.len() {
+        if pi < p.len() && (p[pi] == '?' || p[pi] == n[ni]) {
+            pi += 1;
+            ni += 1;
+        } else if pi < p.len() && p[pi] == '*' {
+            star = Some(pi);
+            mark = ni;
+            pi += 1;
+        } else if let Some(s) = star {
+            pi = s + 1;
+            mark += 1;
+            ni = mark;
+        } else {
+            return false;
+        }
+    }
+    while pi < p.len() && p[pi] == '*' {
+        pi += 1;
+    }
+    pi == p.len()
+}
+
+/// True when the file name matches any ignore pattern.
+pub fn is_ignored(path: &Path, patterns: &[String]) -> bool {
+    let Some(name) = path.file_name().map(|n| n.to_string_lossy().into_owned()) else {
+        return false;
+    };
+    patterns
+        .iter()
+        .map(|p| p.trim())
+        .filter(|p| !p.is_empty())
+        .any(|p| wildcard_match(p, &name))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -189,6 +262,27 @@ mod tests {
         let normal = dir.path().join("report.docx");
         fs::write(&normal, b"x").unwrap();
         assert!(!is_hidden_or_system(&normal));
+    }
+
+    #[test]
+    fn wildcards_match_names_case_insensitively() {
+        assert!(wildcard_match("*.lnk", "Google Chrome.LNK"));
+        assert!(wildcard_match("IMG_????.jpg", "img_2041.JPG"));
+        assert!(wildcard_match("*invoice*", "2026 Invoice-Sept.pdf"));
+        assert!(!wildcard_match("*.lnk", "notes.txt"));
+        assert!(!wildcard_match("IMG_????.jpg", "IMG_20411.jpg"));
+        assert!(wildcard_match("*", "anything"));
+    }
+
+    #[test]
+    fn free_target_skips_names_claimed_in_the_batch() {
+        let dir = tempfile::tempdir().unwrap();
+        let p = dir.path().join("a.txt");
+        let claimed = vec![p.clone()];
+        assert_eq!(
+            free_target(&p, &claimed).unwrap(),
+            dir.path().join("a (1).txt")
+        );
     }
 
     #[test]

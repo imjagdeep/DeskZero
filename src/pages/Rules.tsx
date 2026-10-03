@@ -169,6 +169,8 @@ export function Rules() {
         <span className="muted small">{CATEGORIES.map((c) => c.label).join(" · ")}</span>
       </section>
 
+      <IgnoreCard />
+
       {editing && (
         <RuleEditor
           rule={editing}
@@ -203,6 +205,9 @@ function RuleEditor({ rule, onSave, onCancel }: { rule: Rule; onSave: (r: Rule) 
       if (empty) return setError(`Fill in the value for "${FIELD_TEXT[c.field]}".`);
     }
     if (r.destination.type === "custom" && !r.destination.path.trim()) return setError("Choose a destination folder.");
+    if (r.rename && !/\{(date|year|month|day|time|original_name|original_stem|ext|counter)\}/.test(r.rename))
+      return setError("The rename template needs a token like {original_name}, or leave it empty.");
+    if (r.rename && /[\\/]/.test(r.rename)) return setError("The new name can't contain / or \\.");
     onSave({ ...r, name: r.name.trim() });
   }
 
@@ -260,7 +265,7 @@ function RuleEditor({ rule, onSave, onCancel }: { rule: Rule; onSave: (r: Rule) 
             <>
               <input
                 value={r.destination.path}
-                placeholder="Documents/Invoices (inside the Super Folder) or a full path"
+                placeholder="Documents/Invoices or Images/{year}/{month}, or a full path"
                 onChange={(e) => setR({ ...r, destination: { type: "custom", path: e.target.value } })}
               />
               <button
@@ -275,6 +280,18 @@ function RuleEditor({ rule, onSave, onCancel }: { rule: Rule; onSave: (r: Rule) 
           )}
         </div>
 
+        <h3>And rename to (optional)</h3>
+        <input
+          className="mono"
+          style={{ width: "100%" }}
+          value={r.rename ?? ""}
+          placeholder="Leave empty to keep the name, e.g. {date}_{original_name}"
+          onChange={(e) => setR({ ...r, rename: e.target.value || null })}
+        />
+        <p className="muted small">
+          Folders can use {"{year}"}, {"{month}"}, {"{day}"} (date taken for photos). Names can use {"{date}"}, {"{time}"},{" "}
+          {"{original_name}"}, {"{original_stem}"}, {"{ext}"}.
+        </p>
         {error && <p className="error-text">{error}</p>}
         <div className="modal-actions">
           <button onClick={onCancel}>Cancel</button>
@@ -360,4 +377,67 @@ function ListInput({ initial, onChange }: { initial: string; onChange: (raw: str
 function cleanText(field: ConditionField, v: string): string {
   const t = v.trimStart().toLowerCase();
   return field === "extension" ? t.replace(/^\*?\./, "").trim() : t;
+}
+
+const SHORTCUT_PATTERNS = ["*.lnk", "*.url", "*.webloc", "*.desktop"];
+
+/** File-name patterns the organizer never touches. */
+function IgnoreCard() {
+  const cfg = useConfig();
+  const [text, setText] = useState("");
+  if (!cfg) return null;
+  const s = cfg.settings;
+  const patterns = s.ignore_patterns;
+
+  async function save(next: string[]) {
+    try {
+      await api.saveSettings({ ...s, ignore_patterns: next });
+      await refreshConfig();
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
+  const shortcutsIgnored = SHORTCUT_PATTERNS.every((p) => patterns.includes(p));
+  return (
+    <section className="card">
+      <div className="card-head">
+        <div>
+          <h2>Never touch</h2>
+          <span className="muted small">Files matching these names are always left where they are. Use * and ? as wildcards.</span>
+        </div>
+      </div>
+      <div className="chips">
+        {patterns.length === 0 && <span className="muted small">Nothing yet.</span>}
+        {patterns.map((p) => (
+          <span key={p} className="chip removable">
+            <span className="mono">{p}</span>
+            <button className="chip-x" title="Remove" onClick={() => void save(patterns.filter((x) => x !== p))}>
+              ×
+            </button>
+          </span>
+        ))}
+      </div>
+      <form
+        className="row"
+        onSubmit={(e) => {
+          e.preventDefault();
+          const p = text.trim();
+          if (p && !patterns.includes(p)) void save([...patterns, p]);
+          setText("");
+        }}
+      >
+        <input className="grow mono" value={text} placeholder="e.g. *.lnk or Thumbs*.jpg" onChange={(e) => setText(e.target.value)} />
+        <button type="submit" disabled={!text.trim()}>Add</button>
+        {!shortcutsIgnored && (
+          <button
+            type="button"
+            onClick={() => void save([...new Set([...patterns, ...SHORTCUT_PATTERNS])])}
+          >
+            Leave shortcuts in place
+          </button>
+        )}
+      </form>
+    </section>
+  );
 }

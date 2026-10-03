@@ -354,3 +354,63 @@ input[type="checkbox"]:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft);
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--text-3) 45%, transparent); border-radius: 6px; border: 3px solid transparent; background-clip: padding-box; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---------- universal search window (transparent, frameless) ---------- */
+html.spot-window, html.spot-window body, html.spot-window #root { background: transparent; overflow: hidden; }
+.spotlight { padding: 14px 18px 24px; display: flex; flex-direction: column; gap: 8px; }
+.spot-bar {
+  display: flex; align-items: center; gap: 14px; height: 64px; padding: 0 18px 0 14px;
+  background: var(--window); border-radius: 32px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+}
+.spot-logo { width: 38px; height: 38px; }
+.spot-input {
+  flex: 1; height: 44px !important; border: none !important; box-shadow: none !important; background: transparent !important;
+  font-size: 19px; padding: 0 !important;
+}
+.spot-input::placeholder { color: var(--text-3); }
+.spot-kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; color: var(--text-3); border: 0.5px solid var(--sep); border-radius: 5px; padding: 2px 6px; }
+.spot-results {
+  background: var(--window); border-radius: 18px; padding: 6px;
+  box-shadow: 0 10px 34px rgba(0, 0, 0, 0.2), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
+  max-height: 352px; overflow-y: auto;
+}
+.spot-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 11px; }
+.spot-row.selected { background: var(--accent); color: #fff; }
+.spot-row.selected .spot-path, .spot-row.selected .spot-hint { color: rgba(255, 255, 255, 0.8); }
+.spot-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--hover); color: var(--text-2); }
+.spot-icon.app { color: var(--accent); background: var(--accent-soft); }
+.spot-icon.folder { color: #e0a000; background: rgba(255, 196, 0, 0.16); }
+.spot-row.selected .spot-icon { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.spot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.spot-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spot-path { font-size: 11.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.spot-hint { font-size: 11px; color: var(--text-3); white-space: nowrap; }
+.spot-empty { padding: 14px; text-align: center; color: var(--text-2); }
+
+/* storage overview */
+.usage-row { display: grid; grid-template-columns: 150px 1fr 76px 70px; align-items: center; gap: 12px; padding: 5px 0; }
+.usage-name { text-align: left; justify-self: start; overflow: hidden; text-overflow: ellipsis; max-width: 150px; color: var(--text) !important; }
+.usage-bar { height: 8px; border-radius: 4px; background: var(--hover); overflow: hidden; }
+.usage-bar span { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.usage-size { text-align: right; font-variant-numeric: tabular-nums; }
+.usage-files { text-align: right; }
+
+/* conflict choices in the preview */
+.ask-row { display: flex; align-items: center; gap: 12px; }
+.ask-text { flex: 1; min-width: 0; }
+.small-seg button { height: 22px; padding: 0 9px; font-size: 12px; }
+
+.chip.removable { display: inline-flex; align-items: center; gap: 4px; padding-right: 4px; }
+.chip-x { height: 18px; width: 18px; padding: 0; border-radius: 9px; box-shadow: none; background: transparent; color: var(--text-2); font-size: 14px; line-height: 1; }
+.chip-x:hover:not(:disabled) { background: var(--hover); filter: none; }
+
+/* settings extras */
+.shortcut-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0 2px; border-top: 0.5px solid var(--sep); }
+.shortcut-list div { display: flex; align-items: center; gap: 4px; }
+.shortcut-list .muted { margin-left: 10px; }
+kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 2px 6px; border-radius: 5px; background: var(--control); box-shadow: var(--shadow-sm); }
+.about-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 10px; }
+.about-title { font-weight: 600; }
+.about-title .muted { font-weight: 400; margin-left: 6px; }
+.release-notes { white-space: pre-wrap; font: inherit; font-size: 12px; background: var(--window); border-radius: 8px; padding: 10px; max-height: 160px; overflow: auto; }

@@ -1,7 +1,9 @@
 name: Release
 
-# Push a tag like v0.1.0 to build installers for every platform. They are
-# attached to a draft GitHub release; publish it by hand after checking.
+# Push a tag like v0.2.0 to build signed installers for every platform.
+# One draft release is created first and every build uploads into it; when
+# all builds succeed the release is published, which is what the in-app
+# updater reads (releases/latest/download/latest.json).
 on:
   push:
     tags: ["v*"]
@@ -11,7 +13,26 @@ permissions:
   contents: write
 
 jobs:
+  create-release:
+    runs-on: ubuntu-latest
+    outputs:
+      release_id: ${{ steps.create.outputs.id }}
+    steps:
+      - id: create
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" \
+            -f tag_name="$TAG" \
+            -f name="Super Folder $TAG" \
+            -F draft=true \
+            -f body="Installers for Windows, macOS (Apple Silicon and Intel) and Linux. The builds are not code-signed yet; see the README for how to open them the first time." \
+            --jq .id)
+          echo "id=$id" >> "$GITHUB_OUTPUT"
+
   build:
+    needs: create-release
     strategy:
       fail-fast: false
       matrix:
@@ -60,12 +81,18 @@ jobs:
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Signs the update packages; the matching public key is in tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
         with:
-          tagName: ${{ github.ref_name }}
-          releaseName: Super Folder ${{ github.ref_name }}
-          releaseBody: |
-            Installers for Windows, macOS (Apple Silicon and Intel) and Linux.
-            The builds are not code-signed yet; see the README for how to open them the first time.
-          releaseDraft: true
-          prerelease: false
+          releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+
+  publish:
+    needs: [create-release, build]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          ID: ${{ needs.create-release.outputs.release_id }}
+        run: gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/$ID" -F draft=false

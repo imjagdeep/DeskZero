@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "Super Folder",
-  "version": "0.1.3",
+  "version": "0.2.0",
   "identifier": "app.superfolder.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
@@ -20,11 +20,28 @@
         "minHeight": 520,
         "visible": false,
         "dragDropEnabled": true
+      },
+      {
+        "label": "spotlight",
+        "title": "Super Folder Search",
+        "width": 720,
+        "height": 470,
+        "center": true,
+        "resizable": false,
+        "decorations": false,
+        "transparent": true,
+        "shadow": false,
+        "alwaysOnTop": true,
+        "skipTaskbar": true,
+        "visible": false,
+        "focus": true,
+        "dragDropEnabled": false
       }
     ],
     "security": {
       "csp": "default-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src ipc: http://ipc.localhost"
-    }
+    },
+    "macOSPrivateApi": true
   },
   "bundle": {
     "active": true,
@@ -61,6 +78,18 @@
     "linux": {
       "deb": {
         "section": "utils"
+      }
+    },
+    "createUpdaterArtifacts": true
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGRUZCQzU2QUExNzk5MTIKUldRU21SZXFWcnp2eno5NFVHNFFNUnJ0V3lvWGIrb0VTUU05S0dwRUlsb2M1b3NRSStwV003SjkK",
+      "endpoints": [
+        "https://github.com/imjagdeep/super-folder/releases/latest/download/latest.json"
+      ],
+      "windows": {
+        "installMode": "passive"
       }
     }
   }

@@ -4,7 +4,7 @@ A tiny offline desktop app that keeps your folders organized.
 
 Put files into one folder, the **Super Folder**, and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
-- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer.
+- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is an update check, and only when you ask for it.
 - **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
 - **Small.** Built with Tauri and Rust; the installer is a few MB.
 
@@ -19,15 +19,21 @@ Put files into one folder, the **Super Folder**, and they get sorted into `Image
 | | |
 |---|---|
 | **Super Folder** | Drop files in (or onto the window) and they're sorted into category folders. |
-| **Watch folders** | Watch Downloads, Desktop or any folder. New files are picked up once they've finished downloading. |
+| **Watch folders** | Watch Downloads or any folder. New files are picked up once they've finished downloading. |
 | **Simple rules** | "IF file name contains *invoice* THEN move to *Documents/Invoices*". Conditions: extension, file name, file type, size, created and modified date. |
-| **Preview** | "Organize 12 files?" with every move listed. Cancel or Organize. |
-| **Undo** | Every batch is recorded; History puts files back where they were. |
-| **Duplicates** | Finds identical files (size + SHA-256). Shows them; never deletes. |
-| **Search** | `invoice`, `*.pdf`, `large files`, `type:video`, `size:>10mb`, `modified:2026-09`, `folder:scans`. |
-| **Rename** | Templates like `{date}_{original_name}` with a preview, undoable from History. |
-| **Tray** | Runs quietly in the tray / menu bar: Organize Now, Pause, Open, Exit. |
-| **Rules import/export** | Share a `rules.json` with others. |
+| **Date folders** | Destinations like `Images/{year}/{month}`. Photos use the date they were taken (EXIF), not the file date. |
+| **Rename while sorting** | A rule can also rename, e.g. `{date}_{original_name}`. |
+| **Never touch** | An ignore list (`*.lnk`, `Thumbs*.jpg`…). Hidden and system files are always left alone. |
+| **Preview** | "Organize 12 files?" with every move listed. Name clashes can ask you: keep both, replace or skip. |
+| **Undo** | Every batch is recorded; History puts files back and removes folders it left empty. |
+| **Universal search** | Press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere: a floating bar finds files, folders and apps as you type. |
+| **Duplicates** | Finds identical files (size + SHA-256). Move extra copies aside in one click; never deletes. |
+| **Cleanup** | Moves files you haven't touched in 30/90/180/365 days into an Archive folder. |
+| **Storage** | See how much space each folder in the Super Folder uses. |
+| **Search & Rename** | Search with `invoice`, `*.pdf`, `large files`, `type:video`, `size:>10mb`; rename templates with a preview. |
+| **Right-click menu** | Windows: "Organize with Super Folder" on any file or folder in Explorer (switch on in Settings). |
+| **Shortcuts & tray** | **Ctrl+Alt+O** organizes waiting files. Runs quietly in the tray / menu bar. |
+| **Updates** | Settings → About shows your version and installs signed updates when you ask. |
 
 ## Install
 
@@ -126,6 +132,19 @@ All conditions in a rule must match. A rule with no conditions never matches.
 - Hidden and system files (`desktop.ini`, `Thumbs.db`, `.DS_Store`, Office `~$` lock files) are left alone.
 - Symbolic links are moved as links, never followed. A folder can't be moved into itself, and the Super Folder and watch folders can't be inside one another.
 - Unicode file names and large files are handled.
+
+## Keyboard shortcuts
+
+| Shortcut | Does |
+|---|---|
+| Ctrl+Shift+Space (⌘⇧Space) | Universal search. Enter opens, Ctrl/⌘+Enter shows in folder, Esc closes. |
+| Ctrl+Alt+O (⌘⌥O) | Show the window and preview everything waiting. |
+
+If another app already uses a shortcut, Super Folder keeps working without it.
+
+## Updates
+
+Settings → About → **Check for updates** asks GitHub whether a newer release exists. If there is one, **Download & install** fetches it, checks its signature against the key built into the app, installs it and restarts. You can also turn on a weekly check. That's the only time the app connects to the internet.
 
 ## Where data lives
 

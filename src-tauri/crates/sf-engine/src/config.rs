@@ -163,6 +163,7 @@ mod tests {
             destination: Destination::Category {
                 category: crate::types::Category::Documents,
             },
+            rename: None,
         }];
         cfg.save_rules().unwrap();
 

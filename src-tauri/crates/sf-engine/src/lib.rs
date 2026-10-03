@@ -13,6 +13,8 @@ pub mod plan;
 pub mod renamer;
 pub mod rules;
 pub mod search;
+pub mod search_index;
+pub mod tidy;
 pub mod types;
 pub mod watcher;
 

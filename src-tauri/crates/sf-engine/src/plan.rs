@@ -26,11 +26,17 @@ pub fn file_meta(path: &Path) -> io::Result<FileMeta> {
         .map(|n| n.to_string_lossy().into_owned())
         .unwrap_or_default();
     let ft = md.file_type();
+    let category = classify::classify(&name);
+    let taken = if category == crate::types::Category::Images && ft.is_file() {
+        photo_taken(path)
+    } else {
+        None
+    };
     Ok(FileMeta {
         path: path.to_path_buf(),
         name_lower: name.to_lowercase(),
         ext_lower: classify::extension_of(&name),
-        category: classify::classify(&name),
+        category,
         size_bytes: md.len(),
         created: md
             .created()
@@ -42,7 +48,26 @@ pub fn file_meta(path: &Path) -> io::Result<FileMeta> {
             .unwrap_or_else(|_| chrono::Utc::now()),
         is_symlink: ft.is_symlink(),
         is_dir: ft.is_dir(),
+        taken,
     })
+}
+
+/// EXIF "date taken" of a photo, read from the file header only. Any read
+/// or parse problem simply means "unknown" (falls back to modified date).
+fn photo_taken(path: &Path) -> Option<chrono::NaiveDateTime> {
+    let file = fs::File::open(path).ok()?;
+    let mut reader = io::BufReader::new(file);
+    let exif = exif::Reader::new().read_from_container(&mut reader).ok()?;
+    let field = exif
+        .get_field(exif::Tag::DateTimeOriginal, exif::In::PRIMARY)
+        .or_else(|| exif.get_field(exif::Tag::DateTime, exif::In::PRIMARY))?;
+    let exif::Value::Ascii(ref parts) = field.value else {
+        return None;
+    };
+    let raw = parts.first()?;
+    let text = std::str::from_utf8(raw).ok()?.trim();
+    // EXIF format: "YYYY:MM:DD HH:MM:SS"
+    chrono::NaiveDateTime::parse_from_str(text, "%Y:%m:%d %H:%M:%S").ok()
 }
 
 /// Plan a set of inputs. `inputs` may be files or directories; directories
@@ -75,7 +100,9 @@ fn plan_one(
 ) {
     // desktop.ini, Thumbs.db, .DS_Store, Office lock files and anything the
     // OS marks hidden/system belong where they are: never planned.
-    if crate::fsutil::is_hidden_or_system(path) {
+    if crate::fsutil::is_hidden_or_system(path)
+        || crate::fsutil::is_ignored(path, &settings.ignore_patterns)
+    {
         return;
     }
     let meta = match file_meta(path) {
@@ -112,8 +139,12 @@ fn plan_one(
 fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMode) -> PlannedOp {
     let src = meta.path.clone();
 
+    let mut rename: Option<String> = None;
     let (rule_id, rule_name, destination) = match rules::resolve_destination(rules, meta) {
-        Some((rule, dest)) => (Some(rule.id.clone()), Some(rule.name.clone()), Some(dest)),
+        Some((rule, dest)) => {
+            rename = rule.rename.clone().filter(|t| !t.trim().is_empty());
+            (Some(rule.id.clone()), Some(rule.name.clone()), Some(dest))
+        }
         None => match mode {
             // Super Folder drop with no matching rule → its classified
             // category (pdf → Documents, unknown → Other).
@@ -134,7 +165,7 @@ fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMod
         return skipped(&src, &src, "no destination".into(), meta.size_bytes);
     };
 
-    let Some(dst) = compute_destination(&destination, &src, settings) else {
+    let Some(dst) = compute_destination(&destination, meta, rename.as_deref(), settings) else {
         return skipped(
             &src,
             &src,
@@ -221,15 +252,38 @@ fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMod
     }
 }
 
-/// Map a rule destination to a concrete target path for `src`.
-fn compute_destination(dest: &Destination, src: &Path, settings: &Settings) -> Option<PathBuf> {
-    let file_name = src.file_name()?;
+/// Map a rule destination to a concrete target path for a file.
+/// Custom paths may use `{year}`, `{month}` and `{day}` (date taken for
+/// photos, else modified date); `rename` is an optional renamer template
+/// for the new file name.
+fn compute_destination(
+    dest: &Destination,
+    meta: &FileMeta,
+    rename: Option<&str>,
+    settings: &Settings,
+) -> Option<PathBuf> {
+    let file_name: std::ffi::OsString = match rename {
+        Some(template) => {
+            let name = crate::renamer::render_template(template, &meta.path, 1).ok()?;
+            let bad = name.trim().is_empty()
+                || name.contains('/')
+                || name.contains('\\')
+                || name == "."
+                || name == "..";
+            if bad {
+                return None;
+            }
+            name.into()
+        }
+        None => meta.path.file_name()?.to_os_string(),
+    };
     match dest {
         Destination::Category { category } => {
             let root = settings.super_folder.as_ref()?;
             Some(root.join(category.folder_name()).join(file_name))
         }
         Destination::Custom { path } => {
+            let path = expand_date_tokens(path, meta.sort_date());
             if path.is_absolute() {
                 Some(path.join(file_name))
             } else {
@@ -252,6 +306,19 @@ fn compute_destination(dest: &Destination, src: &Path, settings: &Settings) -> O
             }
         }
     }
+}
+
+/// `Images/{year}/{month}` → `Images/2026/10`.
+fn expand_date_tokens(path: &Path, date: chrono::NaiveDate) -> PathBuf {
+    let text = path.to_string_lossy();
+    if !text.contains('{') {
+        return path.to_path_buf();
+    }
+    PathBuf::from(
+        text.replace("{year}", &date.format("%Y").to_string())
+            .replace("{month}", &date.format("%m").to_string())
+            .replace("{day}", &date.format("%d").to_string()),
+    )
 }
 
 fn skipped(src: &Path, dst: &Path, reason: String, size: u64) -> PlannedOp {
@@ -291,6 +358,7 @@ mod tests {
                 value: CondValue::Text(ext.into()),
             }],
             destination: Destination::Category { category: cat },
+            rename: None,
         }
     }
 
@@ -369,6 +437,7 @@ mod tests {
                 destination: Destination::Custom {
                     path: invoices.clone(),
                 },
+                rename: None,
             },
             ext_rule("pdf", "pdf", Category::Documents),
         ];
@@ -381,6 +450,50 @@ mod tests {
         );
         assert_eq!(plan[0].dst, invoices.join("july-invoice.pdf"));
         assert_eq!(plan[0].rule_id.as_deref(), Some("inv"));
+    }
+
+    #[test]
+    fn ignore_patterns_leave_files_alone() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sf = tmp.path().join("SF");
+        fs::create_dir_all(&sf).unwrap();
+        let link = sf.join("Chrome.lnk");
+        let doc = sf.join("notes.txt");
+        fs::write(&link, b"x").unwrap();
+        fs::write(&doc, b"x").unwrap();
+        let mut s = settings_with_super(&sf);
+        s.ignore_patterns = vec!["*.LNK".into()];
+        let plan = plan_inputs(&[link, doc.clone()], &[], &s, PlanMode::SuperFolder);
+        assert_eq!(plan.len(), 1, "ignored file must not appear at all");
+        assert_eq!(plan[0].src, doc);
+    }
+
+    #[test]
+    fn date_tokens_and_rename_shape_the_destination() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sf = tmp.path().join("SF");
+        fs::create_dir_all(&sf).unwrap();
+        let src = sf.join("scan.pdf");
+        fs::write(&src, b"x").unwrap();
+        let mut rule = ext_rule("pdfs", "pdf", Category::Documents);
+        rule.destination = Destination::Custom {
+            path: PathBuf::from("Docs/{year}/{month}"),
+        };
+        rule.rename = Some("{date}_{original_name}".into());
+        let plan = plan_inputs(
+            std::slice::from_ref(&src),
+            &[rule],
+            &settings_with_super(&sf),
+            PlanMode::SuperFolder,
+        );
+        let today = chrono::Local::now().date_naive();
+        let expected = sf
+            .join("Docs")
+            .join(today.format("%Y").to_string())
+            .join(today.format("%m").to_string())
+            .join(format!("{}_scan.pdf", today.format("%Y-%m-%d")));
+        assert_eq!(plan[0].dst, expected);
+        assert!(matches!(plan[0].status, PlanStatus::Move { .. }));
     }
 
     #[test]

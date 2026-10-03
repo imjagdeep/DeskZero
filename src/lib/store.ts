@@ -3,7 +3,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { useSyncExternalStore } from "react";
 import { api, errorText } from "./api";
-import type { AppConfig, Status } from "./types";
+import type { AppConfig, PlannedOp, Status } from "./types";
 
 function createStore<T>(initial: T) {
   let value = initial;
@@ -23,6 +23,7 @@ function createStore<T>(initial: T) {
 
 const statusStore = createStore<Status | null>(null);
 const configStore = createStore<AppConfig | null>(null);
+const previewStore = createStore<PlannedOp[] | null>(null);
 const toastStore = createStore<{ id: number; text: string; error: boolean }[]>([]);
 
 export function useStatus() {
@@ -35,6 +36,17 @@ export function useConfig() {
 
 export function useToasts() {
   return useSyncExternalStore(toastStore.subscribe, toastStore.get);
+}
+
+/** The one "Organize N files?" sheet, opened from anywhere. */
+export function usePreview() {
+  return useSyncExternalStore(previewStore.subscribe, previewStore.get);
+}
+export function openPreview(plan: PlannedOp[]) {
+  previewStore.set(plan);
+}
+export function closePreview() {
+  previewStore.set(null);
 }
 
 let toastId = 0;

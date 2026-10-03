@@ -51,6 +51,10 @@ export interface Settings {
   start_minimized: boolean;
   notifications: boolean;
   paused: boolean;
+  ignore_patterns: string[];
+  search_roots: string[];
+  check_updates_weekly: boolean;
+  context_menu: boolean;
 }
 
 export type RuleKind = "filename" | "custom" | "extension";
@@ -75,6 +79,7 @@ export interface Rule {
   kind: RuleKind;
   conditions: Condition[];
   destination: Destination;
+  rename?: string | null;
 }
 
 export interface AppConfig {
@@ -154,3 +159,25 @@ export interface RenameRow {
   skipped: boolean;
   reason: string | null;
 }
+
+export interface FolderUsage {
+  name: string;
+  path: string;
+  bytes: number;
+  files: number;
+}
+
+export interface SearchEntry {
+  path: string;
+  name: string;
+  kind: "app" | "folder" | "file";
+}
+
+export interface FinderInfo {
+  entries: number;
+  building: boolean;
+  roots: string[];
+  seconds_since_build: number | null;
+}
+
+export type Decision = "keep_both" | "replace" | "skip";

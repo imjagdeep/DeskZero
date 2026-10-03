@@ -5,7 +5,7 @@ import { useState } from "react";
 import { FolderField, PageHeader, RevealButton } from "../components/Common";
 import { api } from "../lib/api";
 import { categoryLabel, dateTime, fileName, humanSize, parentDir } from "../lib/format";
-import { toast, toastError, useConfig } from "../lib/store";
+import { openPreview, toast, toastError, useConfig } from "../lib/store";
 import type { DupGroup, FileInfo, RenameRow } from "../lib/types";
 
 function useStartFolder(): [string, (p: string) => void] {
@@ -96,6 +96,23 @@ export function Duplicates() {
   }
 
   const wasted = groups?.reduce((n, g) => n + g.size_bytes * (g.files.length - 1), 0) ?? 0;
+  const dupDir = folder ? folder.replace(/[\\/]+$/, "") + (folder.includes("\\") ? "\\" : "/") + "Duplicates" : "";
+
+  /** Keep the oldest copy (usually the original); move the rest aside. */
+  function extras(gs: DupGroup[]): string[] {
+    return gs.flatMap((g) => {
+      const sorted = [...g.files].sort((a, b) => (a.modified ?? "").localeCompare(b.modified ?? ""));
+      return sorted.slice(1).map((f) => f.path);
+    });
+  }
+
+  async function moveAside(gs: DupGroup[]) {
+    try {
+      openPreview(await api.planMoveInto(extras(gs), dupDir));
+    } catch (e) {
+      toastError(e);
+    }
+  }
 
   return (
     <div className="page">
@@ -103,16 +120,25 @@ export function Duplicates() {
         <button className="primary" onClick={scan} disabled={busy || !folder}>{busy ? "Scanning…" : "Find duplicates"}</button>
       </PageHeader>
       <FolderField label="Look in" value={folder} onChange={setFolder} />
-      <p className="muted">Files count as duplicates when their size and SHA-256 hash match. Nothing is ever deleted: you decide.</p>
+      <p className="muted">
+        Files count as duplicates when their size and SHA-256 hash match. Nothing is ever deleted: moving extras aside
+        keeps the oldest copy and puts the others in a Duplicates folder, where you can review them.
+      </p>
       {groups && groups.length === 0 && <div className="empty">No duplicates found.</div>}
       {groups && groups.length > 0 && (
-        <p>{groups.length} group{groups.length === 1 ? "" : "s"}, {humanSize(wasted)} in extra copies.</p>
+        <div className="row">
+          <span className="grow">
+            {groups.length} group{groups.length === 1 ? "" : "s"}, {humanSize(wasted)} in extra copies.
+          </span>
+          <button onClick={() => moveAside(groups)}>Move all extra copies aside</button>
+        </div>
       )}
       {groups?.map((g) => (
         <section className="card" key={g.sha256}>
           <div className="card-head">
             <h2>{fileName(g.files[0]?.path ?? "")}</h2>
             <span className="muted small">{humanSize(g.size_bytes)} · {g.files.length} copies · sha256 {g.sha256.slice(0, 16)}…</span>
+            <button className="link" onClick={() => moveAside([g])}>Move extras aside</button>
           </div>
           {g.files.map((f) => (
             <div className="list-row" key={f.path}>

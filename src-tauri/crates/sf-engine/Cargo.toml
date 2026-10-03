@@ -7,6 +7,7 @@ description = "Core filesystem organization engine for Super Folder. Pure Rust, 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
+kamadak-exif = "0.6"
 notify-debouncer-full = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

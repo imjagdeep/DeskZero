@@ -1,18 +1,16 @@
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, pickFolder } from "../components/Common";
 import { AlertIcon, CheckCircleIcon, ClockIcon, DropIcon, PauseIcon, PlayIcon } from "../components/Icons";
-import { PreviewModal } from "../components/PreviewModal";
 import { api } from "../lib/api";
-import { fileName } from "../lib/format";
-import { refreshConfig, refreshStatus, toast, toastError, useConfig, useStatus } from "../lib/store";
-import type { Attention, PlannedOp } from "../lib/types";
+import { fileName, humanSize } from "../lib/format";
+import { openPreview, refreshConfig, refreshStatus, toast, toastError, useConfig, useStatus } from "../lib/store";
+import type { Attention, FolderUsage } from "../lib/types";
 
 export function Home() {
   const cfg = useConfig();
   const status = useStatus();
-  const [plan, setPlan] = useState<PlannedOp[] | null>(null);
+  const [usage, setUsage] = useState<FolderUsage[] | null>(null);
   const [dragging, setDragging] = useState(false);
   const [attention, setAttention] = useState<Attention[]>([]);
 
@@ -23,17 +21,16 @@ export function Home() {
 
   const showPending = useCallback(async () => {
     try {
-      setPlan(await api.pendingPlan());
+      openPreview(await api.pendingPlan());
     } catch (e) {
       toastError(e);
     }
   }, []);
 
-  // Tray "Organize Now" opens the preview of everything waiting.
+  // Storage overview, refreshed whenever something was organized.
   useEffect(() => {
-    const un = listen("organize-now", () => void showPending());
-    return () => void un.then((f) => f());
-  }, [showPending]);
+    api.storageOverview().then(setUsage).catch(toastError);
+  }, [status?.organized_today, cfg?.settings.super_folder]);
 
   // Files dropped onto the window: plan them into the Super Folder.
   useEffect(() => {
@@ -49,7 +46,7 @@ export function Home() {
             const r = await api.executePlan(planned);
             toast(`${r.moved} file(s) organized${r.failed.length ? `, ${r.failed.length} failed` : ""}`, r.failed.length > 0);
           } else {
-            setPlan(planned);
+            openPreview(planned);
           }
         } catch (err) {
           toastError(err);
@@ -125,8 +122,33 @@ export function Home() {
         </section>
       )}
 
-      {plan && <PreviewModal plan={plan} onClose={() => setPlan(null)} />}
+      {usage && usage.length > 0 && <StorageCard usage={usage} />}
     </div>
+  );
+}
+
+function StorageCard({ usage }: { usage: FolderUsage[] }) {
+  const total = usage.reduce((n, u) => n + u.bytes, 0) || 1;
+  const top = usage.slice(0, 8);
+  return (
+    <section className="card">
+      <div className="card-head">
+        <h2>Storage</h2>
+        <span className="muted small">{humanSize(total)} in the Super Folder</span>
+      </div>
+      {top.map((u) => (
+        <div className="usage-row" key={u.path}>
+          <button className="link usage-name" title={u.path} onClick={() => api.openFolder(u.path).catch(toastError)}>
+            {u.name}
+          </button>
+          <div className="usage-bar">
+            <span style={{ width: `${Math.max(2, (u.bytes / total) * 100)}%` }} />
+          </div>
+          <span className="usage-size">{humanSize(u.bytes)}</span>
+          <span className="usage-files muted small">{u.files} file{u.files === 1 ? "" : "s"}</span>
+        </div>
+      ))}
+    </section>
   );
 }
 

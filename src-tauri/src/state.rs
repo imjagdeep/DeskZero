@@ -23,6 +23,8 @@ pub struct Inner {
     pub attention: Vec<Attention>,
     pub watcher: Option<WatchHandle>,
     pub watcher_error: Option<String>,
+    /// Paths from `--organize` (right-click menu) waiting for the window.
+    pub startup_paths: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, Serialize, PartialEq)]
@@ -41,6 +43,7 @@ impl AppState {
             attention: Vec::new(),
             watcher: None,
             watcher_error: None,
+            startup_paths: Vec::new(),
         }))
     }
 

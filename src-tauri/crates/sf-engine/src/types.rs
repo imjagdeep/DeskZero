@@ -183,6 +183,10 @@ pub struct Rule {
     /// (prevents accidental catch-all rules).
     pub conditions: Vec<Condition>,
     pub destination: Destination,
+    /// Optional rename template applied while moving, e.g.
+    /// `{date}_{original_name}` (see `renamer` for tokens).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub rename: Option<String>,
 }
 
 fn default_true() -> bool {
@@ -223,6 +227,20 @@ pub struct FileMeta {
     pub is_symlink: bool,
     /// True when the path is a directory.
     pub is_dir: bool,
+    /// Photos: when the picture was taken (EXIF DateTimeOriginal, camera
+    /// local time). None for non-images or images without that tag.
+    pub taken: Option<chrono::NaiveDateTime>,
+}
+
+impl FileMeta {
+    /// The date used for `{year}/{month}/{day}` folders and the renamer's
+    /// `{date}`: date taken for photos, otherwise the local modified date.
+    pub fn sort_date(&self) -> chrono::NaiveDate {
+        match self.taken {
+            Some(t) => t.date(),
+            None => self.modified.with_timezone(&chrono::Local).date_naive(),
+        }
+    }
 }
 
 /// The outcome of planning one file. Planning never touches disk.
@@ -300,6 +318,19 @@ pub struct Settings {
     /// Monitoring paused by the user (tray menu).
     #[serde(default)]
     pub paused: bool,
+    /// File-name patterns never organized (`*` and `?` wildcards,
+    /// case-insensitive), e.g. `*.lnk`.
+    #[serde(default)]
+    pub ignore_patterns: Vec<String>,
+    /// Folders the universal search indexes. Empty = the usual user folders.
+    #[serde(default)]
+    pub search_roots: Vec<PathBuf>,
+    /// Check GitHub for a newer version once a week (off = only on request).
+    #[serde(default)]
+    pub check_updates_weekly: bool,
+    /// Windows: "Organize with Super Folder" in the right-click menu.
+    #[serde(default)]
+    pub context_menu: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -338,6 +369,10 @@ impl Default for Settings {
             start_minimized: false,
             notifications: true,
             paused: false,
+            ignore_patterns: Vec::new(),
+            search_roots: Vec::new(),
+            check_updates_weekly: false,
+            context_menu: false,
         }
     }
 }
