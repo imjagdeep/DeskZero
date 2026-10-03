@@ -1,4 +1,4 @@
-//! Super Folder desktop shell: window, tray and commands over sf-engine.
+//! DeskZero desktop shell: window, tray and commands over sf-engine.
 
 mod commands;
 mod finder;
@@ -69,8 +69,10 @@ pub fn run() {
         )
         .setup(|app| {
             // Same data dir as the CLI harness, so both see one history.
-            // SUPER_FOLDER_DATA_DIR points it elsewhere (testing, portable use).
-            let data_dir = std::env::var_os("SUPER_FOLDER_DATA_DIR")
+            // DESKZERO_DATA_DIR points it elsewhere (testing, portable use);
+            // the old DESKZERO_DATA_DIR name still works.
+            let data_dir = std::env::var_os("DESKZERO_DATA_DIR")
+                .or_else(|| std::env::var_os("DESKZERO_DATA_DIR"))
                 .map(std::path::PathBuf::from)
                 .or_else(sf_engine::Config::default_dir)
                 .ok_or("no per-user config folder")?;
@@ -81,16 +83,16 @@ pub fn run() {
             {
                 tracing::warn!("history compaction failed: {e}");
             }
-            if let Some(sf) = &cfg.settings.super_folder {
+            if let Some(sf) = &cfg.settings.organize_root {
                 if let Err(e) = std::fs::create_dir_all(sf) {
-                    tracing::warn!("cannot create super folder {}: {e}", sf.display());
+                    tracing::warn!("cannot create organize root {}: {e}", sf.display());
                 }
             }
             cfg.settings.version = cfg.settings.version.max(1);
             let start_minimized = cfg.settings.start_minimized;
 
             let state = AppState::new(cfg);
-            organizer::scan_super_folder(&mut state.lock());
+            organizer::scan_organize_root(&mut state.lock());
             // Launched from the right-click menu: keep the paths until the
             // window asks for them.
             let args: Vec<String> = std::env::args().collect();
@@ -155,5 +157,5 @@ pub fn run() {
             commands::take_startup_paths,
         ])
         .run(tauri::generate_context!())
-        .expect("error while running Super Folder");
+        .expect("error while running DeskZero");
 }

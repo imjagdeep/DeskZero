@@ -1,8 +1,8 @@
-# Super Folder
+# DeskZero
 
 A tiny offline desktop app that keeps your folders organized.
 
-Put files into one folder, the **Super Folder**, and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
+Put files into one folder — your **DeskZero** — and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
 - **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is an update check, and only when you ask for it.
 - **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
@@ -18,7 +18,7 @@ Put files into one folder, the **Super Folder**, and they get sorted into `Image
 
 | | |
 |---|---|
-| **Super Folder** | Drop files in (or onto the window) and they're sorted into category folders. |
+| **DeskZero** | Drop files in (or onto the window) and they're sorted into category folders. |
 | **Watch folders** | Watch Downloads or any folder. New files are picked up once they've finished downloading. |
 | **Simple rules** | "IF file name contains *invoice* THEN move to *Documents/Invoices*". Conditions: extension, file name, file type, size, created and modified date. |
 | **Date folders** | Destinations like `Images/{year}/{month}`. Photos use the date they were taken (EXIF), not the file date. |
@@ -29,9 +29,9 @@ Put files into one folder, the **Super Folder**, and they get sorted into `Image
 | **Universal search** | Press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere: a floating bar finds files, folders and apps as you type. |
 | **Duplicates** | Finds identical files (size + SHA-256). Move extra copies aside in one click; never deletes. |
 | **Cleanup** | Moves files you haven't touched in 30/90/180/365 days into an Archive folder. |
-| **Storage** | See how much space each folder in the Super Folder uses. |
+| **Storage** | See how much space each folder in your DeskZero uses. |
 | **Search & Rename** | Search with `invoice`, `*.pdf`, `large files`, `type:video`, `size:>10mb`; rename templates with a preview. |
-| **Right-click menu** | Windows: "Organize with Super Folder" on any file or folder in Explorer (switch on in Settings). |
+| **Right-click menu** | Windows: "Organize with DeskZero" on any file or folder in Explorer (switch on in Settings). |
 | **Shortcuts & tray** | **Ctrl+Alt+O** organizes waiting files. Runs quietly in the tray / menu bar. |
 | **Updates** | Settings → About shows your version and installs signed updates when you ask. |
 
@@ -49,16 +49,16 @@ Download the latest installer from [Releases](../../releases):
 **The builds are not code-signed yet**, so your system will warn the first time:
 
 - **Windows:** SmartScreen says "Windows protected your PC". Click **More info → Run anyway**.
-- **macOS:** right-click the app in Applications → **Open** → **Open**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/Super Folder.app"` once.
+- **macOS:** right-click the app in Applications → **Open** → **Open**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once.
 - **Linux AppImage:** `chmod +x Super.Folder_*.AppImage` then run it. The tray icon needs an AppIndicator-capable desktop (GNOME needs the *AppIndicator* extension).
 
 ## Getting started
 
-1. Open Super Folder. It asks where your Super Folder should live (default: `Super Folder` in your home folder).
+1. Open DeskZero. It asks where your DeskZero should live (default: `DeskZero` in your home folder).
 2. Drop some files in. Home shows **N files waiting**: press **Organize Files**, check the preview, press **Organize**.
 3. Optional: add watch folders, create rules, and turn on **Start with system** in Settings.
 
-Closing the window keeps Super Folder running in the tray. Use **Exit** in the tray menu to quit.
+Closing the window keeps DeskZero running in the tray. Use **Exit** in the tray menu to quit.
 
 ## How files are sorted
 
@@ -86,7 +86,7 @@ Within each group you can reorder rules. Default categories:
 | Code | source and config files: js, rs, py, json, yaml, html, css |
 | Other | everything else |
 
-**Super Folder vs watch folders:** files in the Super Folder that no rule matches go to `Other`. Files in a watch folder that no rule matches **stay where they are** and show under *Needs attention*, so the app never sweeps your Downloads into `Other`.
+**DeskZero vs watch folders:** files in your DeskZero that no rule matches go to `Other`. Files in a watch folder that no rule matches **stay where they are** and show under *Needs attention*, so the app never sweeps your Downloads into `Other`.
 
 ### Rules file format
 
@@ -118,7 +118,7 @@ Export and import rules as JSON (Rules → Export / Import):
 | `conditions[].op` | `is`, `contains`, `in` (list), `gt`, `gte`, `lt`, `lte` |
 | `conditions[].value` | text, a list of text, a number (MB), or a date `YYYY-MM-DD` |
 | `type` values | `image`, `video`, `audio`, `document`, `spreadsheet`, `presentation`, `archive`, `application`, `installer`, `disk_image`, `code`, `other` |
-| `destination` | `{ "type": "category", "category": "documents" }` or `{ "type": "custom", "path": "…" }` (relative paths are inside the Super Folder) |
+| `destination` | `{ "type": "category", "category": "documents" }` or `{ "type": "custom", "path": "…" }` (relative paths are inside your DeskZero) |
 
 All conditions in a rule must match. A rule with no conditions never matches.
 
@@ -128,9 +128,9 @@ All conditions in a rule must match. A rule with no conditions never matches.
 - Other conflict choices: **Skip**, **Replace** (the old file is set aside so Undo can bring it back) or **Ask**.
 - Waits until a download has finished (size stable for a moment; `.crdownload`, `.part`, `.tmp` are ignored).
 - Retries locked files, and reports permission errors and disconnected drives without stopping the batch.
-- Only files directly in the Super Folder or a watch folder are organized. Subfolders, including your own folders, are never touched.
+- Only files directly in your DeskZero or a watch folder are organized. Subfolders, including your own folders, are never touched.
 - Hidden and system files (`desktop.ini`, `Thumbs.db`, `.DS_Store`, Office `~$` lock files) are left alone.
-- Symbolic links are moved as links, never followed. A folder can't be moved into itself, and the Super Folder and watch folders can't be inside one another.
+- Symbolic links are moved as links, never followed. A folder can't be moved into itself, and your DeskZero and watch folders can't be inside one another.
 - Unicode file names and large files are handled.
 
 ## Keyboard shortcuts
@@ -140,7 +140,7 @@ All conditions in a rule must match. A rule with no conditions never matches.
 | Ctrl+Shift+Space (⌘⇧Space) | Universal search. Enter opens, Ctrl/⌘+Enter shows in folder, Esc closes. |
 | Ctrl+Alt+O (⌘⌥O) | Show the window and preview everything waiting. |
 
-If another app already uses a shortcut, Super Folder keeps working without it.
+If another app already uses a shortcut, DeskZero keeps working without it.
 
 ## Updates
 
@@ -150,9 +150,9 @@ Settings → About → **Check for updates** asks GitHub whether a newer release
 
 Settings, rules and history are plain JSON in:
 
-- Windows: `%APPDATA%\super-folder\`
-- macOS: `~/Library/Application Support/super-folder/`
-- Linux: `~/.config/super-folder/`
+- Windows: `%APPDATA%\deskzero\`
+- macOS: `~/Library/Application Support/deskzero/`
+- Linux: `~/.config/deskzero/`
 
 Files: `settings.json`, `rules.json`, `history.jsonl`, and `quarantine/` (files replaced under the *Replace* policy, so Undo can restore them). Deleting the folder resets the app.
 
@@ -193,7 +193,7 @@ cargo run -p sf-engine --example cli -- plan ~/Downloads
 cargo run -p sf-engine --example cli -- search ~/Documents "*.pdf size:>1mb"
 ```
 
-Set `SUPER_FOLDER_DATA_DIR` to use a separate data folder while testing.
+Set `DESKZERO_DATA_DIR` to use a separate data folder while testing.
 
 ## License
 

@@ -10,7 +10,7 @@ use std::path::Path;
 
 fn settings(sf: &Path) -> Settings {
     Settings {
-        super_folder: Some(sf.to_path_buf()),
+        organize_root: Some(sf.to_path_buf()),
         ..Settings::default()
     }
 }
@@ -19,7 +19,7 @@ fn settings(sf: &Path) -> Settings {
 fn plan_execute_undo_full_cycle() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
-    let sf = root.join("Super Folder");
+    let sf = root.join("DeskZero");
     fs::create_dir_all(&sf).unwrap();
     let hist = root.join("data").join("history.jsonl");
     fs::create_dir_all(hist.parent().unwrap()).unwrap();
@@ -44,7 +44,7 @@ fn plan_execute_undo_full_cycle() {
     .collect();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&inputs, &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(&inputs, &[], &s, PlanMode::OrganizeRoot);
     assert_eq!(plan.len(), 8);
     assert!(plan
         .iter()
@@ -93,7 +93,7 @@ fn plan_execute_undo_full_cycle() {
 fn conflict_rename_keeps_both_files() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
-    let sf = root.join("Super Folder");
+    let sf = root.join("DeskZero");
     let docs = sf.join("Documents");
     fs::create_dir_all(&docs).unwrap();
     fs::write(docs.join("report.pdf"), b"OLD").unwrap();
@@ -105,7 +105,7 @@ fn conflict_rename_keeps_both_files() {
         std::slice::from_ref(&incoming),
         &[],
         &s,
-        PlanMode::SuperFolder,
+        PlanMode::OrganizeRoot,
     );
     assert_eq!(plan[0].dst.file_name().unwrap(), "report (1).pdf");
 
@@ -127,7 +127,7 @@ fn conflict_rename_keeps_both_files() {
 fn failed_move_is_recorded_and_batch_completes() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
-    let sf = root.join("Super Folder");
+    let sf = root.join("DeskZero");
     fs::create_dir_all(&sf).unwrap();
     let ok = root.join("ok.jpg");
     fs::write(&ok, b"img").unwrap();
@@ -135,7 +135,7 @@ fn failed_move_is_recorded_and_batch_completes() {
     fs::write(&ghost, b"png").unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&[ok.clone(), ghost.clone()], &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(&[ok.clone(), ghost.clone()], &[], &s, PlanMode::OrganizeRoot);
     assert_eq!(plan.len(), 2);
     fs::remove_file(&ghost).unwrap(); // simulate vanished file after planning
 
@@ -162,13 +162,13 @@ fn failed_move_is_recorded_and_batch_completes() {
 fn unicode_names_round_trip() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
-    let sf = root.join("Super Folder");
+    let sf = root.join("DeskZero");
     fs::create_dir_all(&sf).unwrap();
     let file = root.join("facture été 2026.pdf");
     fs::write(&file, b"data").unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(std::slice::from_ref(&file), &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(std::slice::from_ref(&file), &[], &s, PlanMode::OrganizeRoot);
     let mut counter = 0u64;
     let result = mover::execute(
         &plan,
@@ -190,7 +190,7 @@ fn unicode_names_round_trip() {
 fn symlinks_move_as_links_not_targets() {
     let tmp = tempfile::tempdir().unwrap();
     let root = tmp.path();
-    let sf = root.join("Super Folder");
+    let sf = root.join("DeskZero");
     fs::create_dir_all(&sf).unwrap();
     let target = root.join("real.txt");
     fs::write(&target, b"data").unwrap();
@@ -198,7 +198,7 @@ fn symlinks_move_as_links_not_targets() {
     std::os::unix::fs::symlink(&target, &link).unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(std::slice::from_ref(&link), &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(std::slice::from_ref(&link), &[], &s, PlanMode::OrganizeRoot);
     let mut counter = 0u64;
     mover::execute(
         &plan,

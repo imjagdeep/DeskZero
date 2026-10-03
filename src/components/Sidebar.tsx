@@ -59,7 +59,7 @@ export function Sidebar({ page, onNavigate }: { page: Page; onNavigate: (p: Page
     <nav className="sidebar">
       <div className="brand">
         <img src={logo} alt="" className="brand-logo" />
-        <span>Super Folder</span>
+        <span>DeskZero</span>
       </div>
       {GROUPS.map((g) => (
         <div className="nav-group" key={g.title}>

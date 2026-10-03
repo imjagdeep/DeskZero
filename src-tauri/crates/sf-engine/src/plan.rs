@@ -74,7 +74,7 @@ fn photo_taken(path: &Path) -> Option<chrono::NaiveDateTime> {
 /// are planned recursively (only their contents move, the directory itself
 /// stays). Never moves anything.
 ///
-/// `root_hint` distinguishes Super Folder drops from watch-folder events;
+/// `root_hint` distinguishes DeskZero drops from watch-folder events;
 /// it decides what happens when no rule matches.
 pub fn plan_inputs(
     inputs: &[PathBuf],
@@ -146,9 +146,9 @@ fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMod
             (Some(rule.id.clone()), Some(rule.name.clone()), Some(dest))
         }
         None => match mode {
-            // Super Folder drop with no matching rule → its classified
+            // DeskZero drop with no matching rule → its classified
             // category (pdf → Documents, unknown → Other).
-            PlanMode::SuperFolder => (
+            PlanMode::OrganizeRoot => (
                 None,
                 None,
                 Some(Destination::Category {
@@ -279,7 +279,7 @@ fn compute_destination(
     };
     match dest {
         Destination::Category { category } => {
-            let root = settings.super_folder.as_ref()?;
+            let root = settings.organize_root.as_ref()?;
             Some(root.join(category.folder_name()).join(file_name))
         }
         Destination::Custom { path } => {
@@ -287,7 +287,7 @@ fn compute_destination(
             if path.is_absolute() {
                 Some(path.join(file_name))
             } else {
-                // Relative custom paths anchor at the Super Folder and must
+                // Relative custom paths anchor at your DeskZero and must
                 // stay inside it: `..`, roots and drive prefixes are refused
                 // ("invalid destination path" in the preview).
                 let inside = path.components().all(|c| {
@@ -299,7 +299,7 @@ fn compute_destination(
                 if !inside {
                     return None;
                 }
-                let root = settings.super_folder.as_ref()?;
+                let root = settings.organize_root.as_ref()?;
                 // Rebuild from components so `a/b` uses the native separator.
                 let rel: PathBuf = path.components().collect();
                 Some(root.join(rel).join(file_name))
@@ -341,7 +341,7 @@ mod tests {
 
     fn settings_with_super(dir: &Path) -> Settings {
         Settings {
-            super_folder: Some(dir.to_path_buf()),
+            organize_root: Some(dir.to_path_buf()),
             ..Settings::default()
         }
     }
@@ -365,7 +365,7 @@ mod tests {
     #[test]
     fn plans_moves_into_category_folders() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         fs::create_dir_all(&sf).unwrap();
         let pdf = tmp.path().join("invoice.pdf");
         fs::write(&pdf, b"x").unwrap();
@@ -375,7 +375,7 @@ mod tests {
             std::slice::from_ref(&pdf),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
 
         assert_eq!(plan.len(), 1);
@@ -393,7 +393,7 @@ mod tests {
         let odd = watch.join("mystery.zzz");
         fs::write(&odd, b"x").unwrap();
 
-        let settings = Settings::default(); // no super folder configured
+        let settings = Settings::default(); // no organize root configured
         let plan = plan_inputs(
             std::slice::from_ref(&odd),
             &[],
@@ -410,7 +410,7 @@ mod tests {
     #[test]
     fn custom_rule_beats_default_category() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let invoices = sf.join("Documents").join("Invoices");
         fs::create_dir_all(&invoices).unwrap();
         let pdf = tmp.path().join("july-invoice.pdf");
@@ -446,7 +446,7 @@ mod tests {
             std::slice::from_ref(&pdf),
             &rules,
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert_eq!(plan[0].dst, invoices.join("july-invoice.pdf"));
         assert_eq!(plan[0].rule_id.as_deref(), Some("inv"));
@@ -463,7 +463,7 @@ mod tests {
         fs::write(&doc, b"x").unwrap();
         let mut s = settings_with_super(&sf);
         s.ignore_patterns = vec!["*.LNK".into()];
-        let plan = plan_inputs(&[link, doc.clone()], &[], &s, PlanMode::SuperFolder);
+        let plan = plan_inputs(&[link, doc.clone()], &[], &s, PlanMode::OrganizeRoot);
         assert_eq!(plan.len(), 1, "ignored file must not appear at all");
         assert_eq!(plan[0].src, doc);
     }
@@ -484,7 +484,7 @@ mod tests {
             std::slice::from_ref(&src),
             &[rule],
             &settings_with_super(&sf),
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         let today = chrono::Local::now().date_naive();
         let expected = sf
@@ -497,7 +497,7 @@ mod tests {
     }
 
     #[test]
-    fn relative_destination_cannot_escape_super_folder() {
+    fn relative_destination_cannot_escape_organize_root() {
         let tmp = tempfile::tempdir().unwrap();
         let sf = tmp.path().join("SF");
         fs::create_dir_all(&sf).unwrap();
@@ -511,7 +511,7 @@ mod tests {
             &[src],
             &[rule],
             &settings_with_super(&sf),
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert!(matches!(&plan[0].status, PlanStatus::Skip { .. }));
     }
@@ -519,7 +519,7 @@ mod tests {
     #[test]
     fn conflict_renames_at_plan_time() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("report.pdf"), b"old").unwrap();
@@ -532,7 +532,7 @@ mod tests {
             std::slice::from_ref(&incoming),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert_eq!(plan[0].dst.file_name().unwrap(), "report (1).pdf");
         assert!(matches!(
@@ -544,7 +544,7 @@ mod tests {
     #[test]
     fn skip_policy_flags_conflicts() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("report.pdf"), b"old").unwrap();
@@ -559,7 +559,7 @@ mod tests {
             std::slice::from_ref(&incoming),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert!(matches!(
             &plan[0].status,
@@ -570,7 +570,7 @@ mod tests {
     #[test]
     fn ask_policy_marks_undecided() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("a.pdf"), b"old").unwrap();
@@ -585,7 +585,7 @@ mod tests {
             std::slice::from_ref(&incoming),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert!(matches!(plan[0].status, PlanStatus::NeedsDecision));
     }
@@ -593,7 +593,7 @@ mod tests {
     #[test]
     fn directories_are_traversed_not_moved() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         fs::create_dir_all(&sf).unwrap();
         let pile = tmp.path().join("pile");
         fs::create_dir_all(&pile).unwrap();
@@ -605,7 +605,7 @@ mod tests {
             std::slice::from_ref(&pile),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert_eq!(plan.len(), 2);
         assert!(plan
@@ -617,18 +617,18 @@ mod tests {
     #[test]
     fn missing_file_is_flagged_not_fatal() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         fs::create_dir_all(&sf).unwrap();
         let ghost = tmp.path().join("ghost.pdf");
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[ghost], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(&[ghost], &[], &settings, PlanMode::OrganizeRoot);
         assert!(matches!(&plan[0].status, PlanStatus::Skip { .. }));
     }
 
     #[test]
     fn noop_when_already_in_place() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         let at_rest = docs.join("report.pdf");
@@ -639,7 +639,7 @@ mod tests {
             std::slice::from_ref(&at_rest),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert!(matches!(plan[0].status, PlanStatus::Noop));
     }

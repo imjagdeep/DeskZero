@@ -62,7 +62,7 @@ export default function App() {
   useEffect(() => {
     if (!cfg?.settings.check_updates_weekly || !weeklyCheckDue()) return;
     findUpdate()
-      .then((u) => u && toast(`Super Folder ${u.version} is available: Settings → About to install`))
+      .then((u) => u && toast(`DeskZero ${u.version} is available: Settings → About to install`))
       .catch(() => {
         // Offline or GitHub unreachable: stay quiet, it's a background check.
       });

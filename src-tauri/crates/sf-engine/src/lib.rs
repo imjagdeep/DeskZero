@@ -1,4 +1,4 @@
-//! Super Folder engine — pure Rust, no Tauri dependencies.
+//! DeskZero engine — pure Rust, no Tauri dependencies.
 //!
 //! Everything testable lives here. The Tauri command layer (later) is a thin
 //! adapter over this crate.

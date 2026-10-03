@@ -41,9 +41,9 @@ impl Config {
     }
 
     /// The per-user config dir used in production:
-    /// `%APPDATA%\super-folder` on Windows, `~/.config/super-folder` on Linux.
+    /// `%APPDATA%\deskzero` on Windows, `~/.config/deskzero` on Linux.
     pub fn default_dir() -> Option<PathBuf> {
-        dirs::config_dir().map(|d| d.join("super-folder"))
+        dirs::config_dir().map(|d| d.join("deskzero"))
     }
 
     pub fn save_settings(&self) -> io::Result<()> {
@@ -129,13 +129,13 @@ mod tests {
     fn settings_round_trip() {
         let dir = tempfile::tempdir().unwrap();
         let mut cfg = Config::load(dir.path());
-        cfg.settings.super_folder = Some(PathBuf::from("D:\\Super Folder"));
+        cfg.settings.organize_root = Some(PathBuf::from("D:\\DeskZero"));
         cfg.save_settings().unwrap();
 
         let reloaded = Config::load(dir.path());
         assert_eq!(
-            reloaded.settings.super_folder,
-            Some(PathBuf::from("D:\\Super Folder"))
+            reloaded.settings.organize_root,
+            Some(PathBuf::from("D:\\DeskZero"))
         );
     }
 

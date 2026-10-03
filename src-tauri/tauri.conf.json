@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Super Folder",
-  "version": "0.2.1",
-  "identifier": "app.superfolder.desktop",
+  "productName": "DeskZero",
+  "version": "0.3.0",
+  "identifier": "app.deskzero.desktop",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Super Folder",
+        "title": "DeskZero",
         "width": 1040,
         "height": 700,
         "minWidth": 760,
@@ -23,7 +23,7 @@
       },
       {
         "label": "spotlight",
-        "title": "Super Folder Search",
+        "title": "DeskZero Search",
         "width": 720,
         "height": 470,
         "center": true,
@@ -63,7 +63,7 @@
     "copyright": "Copyright (c) 2026 Jagdeep Sandhu. MIT License.",
     "category": "Utility",
     "shortDescription": "Offline file organizer",
-    "longDescription": "Super Folder keeps your folders organized with simple rules. Offline, private, no account. Preview before moving, undo any batch.",
+    "longDescription": "DeskZero keeps your folders organized with simple rules. Offline, private, no account. Preview before moving, undo any batch.",
     "windows": {
       "nsis": {
         "installMode": "currentUser",
@@ -87,7 +87,7 @@
     "updater": {
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IENGRUZCQzU2QUExNzk5MTIKUldRU21SZXFWcnp2eno5NFVHNFFNUnJ0V3lvWGIrb0VTUU05S0dwRUlsb2M1b3NRSStwV003SjkK",
       "endpoints": [
-        "https://github.com/imjagdeep/super-folder/releases/latest/download/latest.json"
+        "https://github.com/imjagdeep/deskzero/releases/latest/download/latest.json"
       ],
       "windows": {
         "installMode": "passive"

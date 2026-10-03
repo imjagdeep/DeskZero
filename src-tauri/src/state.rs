@@ -15,7 +15,7 @@ pub struct Inner {
     pub cfg: Config,
     /// Feeds history op ids (engine contract: a shared counter).
     pub counter: u64,
-    /// Files in the Super Folder waiting for a confirmed organize.
+    /// Files in your DeskZero waiting for a confirmed organize.
     pub pending_super: Vec<PathBuf>,
     /// Files in watch folders waiting for a confirmed organize.
     pub pending_watch: Vec<PathBuf>,

@@ -18,7 +18,7 @@ pub struct Status {
     pub pending: usize,
     pub paused: bool,
     pub watching: Vec<PathBuf>,
-    pub super_folder: Option<PathBuf>,
+    pub organize_root: Option<PathBuf>,
     pub watcher_error: Option<String>,
 }
 
@@ -35,11 +35,11 @@ pub struct FailedDto {
     pub error: String,
 }
 
-/// Folders the watcher should observe: the Super Folder plus enabled
+/// Folders the watcher should observe: your DeskZero plus enabled
 /// watch folders that exist.
 pub fn watched_folders(settings: &Settings) -> Vec<PathBuf> {
     let mut out = Vec::new();
-    if let Some(sf) = &settings.super_folder {
+    if let Some(sf) = &settings.organize_root {
         out.push(sf.clone());
     }
     for w in settings.watch_folders.iter().filter(|w| w.enabled) {
@@ -107,7 +107,7 @@ fn run_waiting_if_automatic(g: &mut Inner) -> usize {
             &g.pending_super,
             &g.cfg.rules,
             &g.cfg.settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         moved += run_plan(g, &plan).moved;
     }
@@ -124,9 +124,9 @@ fn run_waiting_if_automatic(g: &mut Inner) -> usize {
     moved
 }
 
-fn in_super_folder(path: &Path, settings: &Settings) -> bool {
+fn in_organize_root(path: &Path, settings: &Settings) -> bool {
     settings
-        .super_folder
+        .organize_root
         .as_ref()
         .is_some_and(|sf| path.starts_with(sf))
 }
@@ -146,15 +146,15 @@ fn handle_batch(app: &AppHandle, batch: Vec<PathBuf>) {
         notify = g.cfg.settings.notifications;
         let (sup, wat): (Vec<PathBuf>, Vec<PathBuf>) = batch
             .into_iter()
-            .partition(|p| in_super_folder(p, &g.cfg.settings));
+            .partition(|p| in_organize_root(p, &g.cfg.settings));
 
-        for (paths, mode) in [(sup, PlanMode::SuperFolder), (wat, PlanMode::WatchFolder)] {
+        for (paths, mode) in [(sup, PlanMode::OrganizeRoot), (wat, PlanMode::WatchFolder)] {
             if paths.is_empty() {
                 continue;
             }
             let plan = sf_engine::plan_inputs(&paths, &g.cfg.rules, &g.cfg.settings, mode);
             let auto = match mode {
-                PlanMode::SuperFolder => g.cfg.settings.auto_organize,
+                PlanMode::OrganizeRoot => g.cfg.settings.auto_organize,
                 PlanMode::WatchFolder => !g.cfg.settings.confirm_before_move,
             };
             if auto {
@@ -162,7 +162,7 @@ fn handle_batch(app: &AppHandle, batch: Vec<PathBuf>) {
             } else {
                 for op in plan.iter().filter(|op| op.is_executable()) {
                     let list = match mode {
-                        PlanMode::SuperFolder => &mut g.pending_super,
+                        PlanMode::OrganizeRoot => &mut g.pending_super,
                         PlanMode::WatchFolder => &mut g.pending_watch,
                     };
                     if !list.contains(&op.src) {
@@ -205,7 +205,7 @@ fn send_notification(app: &AppHandle, body: &str) {
     if let Err(e) = app
         .notification()
         .builder()
-        .title("Super Folder")
+        .title("DeskZero")
         .body(body)
         .show()
     {
@@ -287,7 +287,7 @@ pub fn pending_plan(g: &mut Inner) -> Vec<PlannedOp> {
         &g.pending_super,
         &g.cfg.rules,
         &g.cfg.settings,
-        PlanMode::SuperFolder,
+        PlanMode::OrganizeRoot,
     );
     plan.extend(sf_engine::plan_inputs(
         &g.pending_watch,
@@ -298,10 +298,10 @@ pub fn pending_plan(g: &mut Inner) -> Vec<PlannedOp> {
     plan
 }
 
-/// Files sitting loose at the top of the Super Folder (dropped while the
+/// Files sitting loose at the top of your DeskZero (dropped while the
 /// app was closed, or before a watcher existed) count as pending too.
-pub fn scan_super_folder(g: &mut Inner) {
-    let Some(sf) = g.cfg.settings.super_folder.clone() else {
+pub fn scan_organize_root(g: &mut Inner) {
+    let Some(sf) = g.cfg.settings.organize_root.clone() else {
         return;
     };
     let Ok(entries) = std::fs::read_dir(&sf) else {
@@ -312,7 +312,7 @@ pub fn scan_super_folder(g: &mut Inner) {
         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
         .map(|e| e.path())
         .collect();
-    let plan = sf_engine::plan_inputs(&loose, &g.cfg.rules, &g.cfg.settings, PlanMode::SuperFolder);
+    let plan = sf_engine::plan_inputs(&loose, &g.cfg.rules, &g.cfg.settings, PlanMode::OrganizeRoot);
     for op in plan.iter().filter(|op| op.is_executable()) {
         if !g.pending_super.contains(&op.src) {
             g.pending_super.push(op.src.clone());
@@ -338,7 +338,7 @@ pub fn status(g: &Inner) -> Status {
         } else {
             Vec::new()
         },
-        super_folder: g.cfg.settings.super_folder.clone(),
+        organize_root: g.cfg.settings.organize_root.clone(),
         watcher_error: g.watcher_error.clone(),
     }
 }

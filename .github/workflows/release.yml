@@ -25,7 +25,7 @@ jobs:
         run: |
           id=$(gh api "repos/${GITHUB_REPOSITORY}/releases" \
             -f tag_name="$TAG" \
-            -f name="Super Folder $TAG" \
+            -f name="DeskZero $TAG" \
             -F draft=true \
             -f body="Installers for Windows, macOS (Apple Silicon and Intel) and Linux. The builds are not code-signed yet; see the README for how to open them the first time." \
             --jq .id)

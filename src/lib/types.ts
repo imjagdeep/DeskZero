@@ -40,7 +40,7 @@ export interface WatchFolder {
 
 export interface Settings {
   version: number;
-  super_folder: string | null;
+  organize_root: string | null;
   watch_folders: WatchFolder[];
   auto_organize: boolean;
   confirm_before_move: boolean;
@@ -86,7 +86,7 @@ export interface AppConfig {
   settings: Settings;
   rules: Rule[];
   data_dir: string;
-  suggested_super_folder: string | null;
+  suggested_organize_root: string | null;
 }
 
 export type PlanStatus =
@@ -110,7 +110,7 @@ export interface Status {
   pending: number;
   paused: boolean;
   watching: string[];
-  super_folder: string | null;
+  organize_root: string | null;
   watcher_error: string | null;
 }
 

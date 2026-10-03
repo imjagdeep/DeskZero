@@ -11,7 +11,7 @@ import type { DupGroup, FileInfo, RenameRow } from "../lib/types";
 function useStartFolder(): [string, (p: string) => void] {
   const cfg = useConfig();
   const [folder, setFolder] = useState<string | null>(null);
-  return [folder ?? cfg?.settings.super_folder ?? "", setFolder];
+  return [folder ?? cfg?.settings.organize_root ?? "", setFolder];
 }
 
 const EXAMPLES = ["invoice", "*.pdf", "large files", "type:video", "size:>10mb", "modified:2026-09", "folder:scans"];

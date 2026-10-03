@@ -2,7 +2,7 @@
 name = "sf-engine"
 version = "0.1.0"
 edition = "2021"
-description = "Core filesystem organization engine for Super Folder. Pure Rust, no Tauri deps, headless-testable."
+description = "Core filesystem organization engine for DeskZero. Pure Rust, no Tauri deps, headless-testable."
 
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }

@@ -22,7 +22,7 @@ export function PreviewModal() {
 
 function Sheet({ plan }: { plan: PlannedOp[] }) {
   const cfg = useConfig();
-  const root = cfg?.settings.super_folder ?? null;
+  const root = cfg?.settings.organize_root ?? null;
   const [busy, setBusy] = useState(false);
   const moves = useMemo(() => plan.filter(isMove), [plan]);
   const asks = useMemo(() => plan.filter((op) => op.status === "needs_decision"), [plan]);

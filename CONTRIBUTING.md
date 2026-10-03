@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for helping. Super Folder aims to stay **small, offline and simple**, so please read the scope below before starting on a feature.
+Thanks for helping. DeskZero aims to stay **small, offline and simple**, so please read the scope below before starting on a feature.
 
 ## Scope
 
@@ -39,4 +39,4 @@ CI runs the same checks on Windows, macOS and Linux.
 
 ## Reporting bugs
 
-Include your OS and version, the Super Folder version, what you did, what happened, and what you expected. Your `history.jsonl` (see the README for its location) helps, but check it for private file names before sharing.
+Include your OS and version, your DeskZero version, what you did, what happened, and what you expected. Your `history.jsonl` (see the README for its location) helps, but check it for private file names before sharing.

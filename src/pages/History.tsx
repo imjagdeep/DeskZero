@@ -8,7 +8,7 @@ import type { HistoryEntry } from "../lib/types";
 
 export function History() {
   const cfg = useConfig();
-  const root = cfg?.settings.super_folder ?? null;
+  const root = cfg?.settings.organize_root ?? null;
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [busy, setBusy] = useState<string | null>(null);
 

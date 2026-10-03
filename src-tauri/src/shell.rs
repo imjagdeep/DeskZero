@@ -17,7 +17,7 @@ pub fn organize_args(args: &[String]) -> Vec<PathBuf> {
     out
 }
 
-/// Add or remove "Organize with Super Folder" in the right-click menu for
+/// Add or remove "Organize with DeskZero" in the right-click menu for
 /// files and folders. Current user only, no admin rights needed.
 #[cfg(windows)]
 pub fn set_context_menu(enabled: bool) -> Result<(), String> {
@@ -25,8 +25,8 @@ pub fn set_context_menu(enabled: bool) -> Result<(), String> {
     use winreg::RegKey;
     let hkcu = RegKey::predef(HKEY_CURRENT_USER);
     let keys = [
-        r"Software\Classes\*\shell\SuperFolder",
-        r"Software\Classes\Directory\shell\SuperFolder",
+        r"Software\Classes\*\shell\DeskZero",
+        r"Software\Classes\Directory\shell\DeskZero",
     ];
     if !enabled {
         for k in keys {
@@ -41,7 +41,7 @@ pub fn set_context_menu(enabled: bool) -> Result<(), String> {
         let (key, _) = hkcu
             .create_subkey(k)
             .map_err(|e| format!("cannot write the right-click menu: {e}"))?;
-        key.set_value("", &"Organize with Super Folder")
+        key.set_value("", &"Organize with DeskZero")
             .and_then(|_| key.set_value("Icon", &format!("\"{exe}\",0")))
             .map_err(|e| format!("cannot write the right-click menu: {e}"))?;
         let (cmd, _) = key

@@ -30,9 +30,9 @@ export function Home() {
   // Storage overview, refreshed whenever something was organized.
   useEffect(() => {
     api.storageOverview().then(setUsage).catch(toastError);
-  }, [status?.organized_today, cfg?.settings.super_folder]);
+  }, [status?.organized_today, cfg?.settings.organize_root]);
 
-  // Files dropped onto the window: plan them into the Super Folder.
+  // Files dropped onto the window: plan them into your DeskZero.
   useEffect(() => {
     const un = getCurrentWebview().onDragDropEvent(async (e) => {
       const p = e.payload;
@@ -57,15 +57,15 @@ export function Home() {
   }, [cfg?.settings.auto_organize]);
 
   if (!cfg) return null;
-  const sf = cfg.settings.super_folder;
+  const sf = cfg.settings.organize_root;
 
   if (!sf) {
-    return <FirstRun suggested={cfg.suggested_super_folder} />;
+    return <FirstRun suggested={cfg.suggested_organize_root} />;
   }
 
   return (
     <div className="page">
-      <PageHeader title="Super Folder">
+      <PageHeader title="DeskZero">
         <button onClick={() => api.openFolder(sf).catch(toastError)}>Open folder</button>
       </PageHeader>
       <p className="muted path-line" title={sf}>{sf}</p>
@@ -73,7 +73,7 @@ export function Home() {
       <div className={dragging ? "dropzone active" : "dropzone"}>
         <div className="dropzone-icon"><DropIcon size={30} /></div>
         <div className="dropzone-title">Drop files here</div>
-        <div className="muted small">or put them in the Super Folder: you'll see a preview before anything moves</div>
+        <div className="muted small">or put them in your DeskZero: you'll see a preview before anything moves</div>
       </div>
 
       <div className="stats">
@@ -134,7 +134,7 @@ function StorageCard({ usage }: { usage: FolderUsage[] }) {
     <section className="card">
       <div className="card-head">
         <h2>Storage</h2>
-        <span className="muted small">{humanSize(total)} in the Super Folder</span>
+        <span className="muted small">{humanSize(total)} in your DeskZero</span>
       </div>
       {top.map((u) => (
         <div className="usage-row" key={u.path}>
@@ -156,10 +156,10 @@ function FirstRun({ suggested }: { suggested: string | null }) {
   async function use(path: string) {
     try {
       const cfg = await api.getConfig();
-      await api.saveSettings({ ...cfg.settings, super_folder: path });
+      await api.saveSettings({ ...cfg.settings, organize_root: path });
       await refreshConfig();
       await refreshStatus();
-      toast("Super Folder ready");
+      toast("DeskZero ready");
     } catch (e) {
       toastError(e);
     }
@@ -168,7 +168,7 @@ function FirstRun({ suggested }: { suggested: string | null }) {
     <div className="page">
       <PageHeader title="Welcome" />
       <section className="card first-run">
-        <h2>Where should your Super Folder live?</h2>
+        <h2>Where should your DeskZero live?</h2>
         <p>Anything you put in it gets sorted into Images, Documents, Videos and so on, using simple rules you control. Nothing leaves this computer.</p>
         <div className="row">
           {suggested && (
@@ -178,7 +178,7 @@ function FirstRun({ suggested }: { suggested: string | null }) {
           )}
           <button
             onClick={async () => {
-              const p = await pickFolder("Choose a Super Folder");
+              const p = await pickFolder("Choose a DeskZero");
               if (p) await use(p);
             }}
           >

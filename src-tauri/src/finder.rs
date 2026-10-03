@@ -47,7 +47,7 @@ pub fn roots(app: &AppHandle) -> Vec<PathBuf> {
         s.search_roots.clone()
     };
     if s.search_roots.is_empty() {
-        roots.extend(s.super_folder.iter().cloned());
+        roots.extend(s.organize_root.iter().cloned());
         roots.extend(s.watch_folders.iter().map(|w| w.path.clone()));
     }
     roots

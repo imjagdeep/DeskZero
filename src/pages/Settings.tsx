@@ -54,7 +54,7 @@ export function Settings() {
               Right-click menu
               <span className="muted small">
                 {" "}
-                Adds "Organize with Super Folder" when you right-click files or folders in Explorer (on Windows 11 it's under
+                Adds "Organize with DeskZero" when you right-click files or folders in Explorer (on Windows 11 it's under
                 "Show more options").
               </span>
             </span>
@@ -67,11 +67,11 @@ export function Settings() {
       </section>
 
       <section className="card">
-        <h2>Super Folder</h2>
-        <FolderField label="Location" value={s.super_folder ?? ""} onChange={(p) => void save({ super_folder: p }).then((ok) => ok && toast("Super Folder changed; files already sorted stay where they are"))} />
+        <h2>DeskZero</h2>
+        <FolderField label="Location" value={s.organize_root ?? ""} onChange={(p) => void save({ organize_root: p }).then((ok) => ok && toast("DeskZero changed; files already sorted stay where they are"))} />
         <label className="check">
           <input type="checkbox" checked={s.auto_organize} onChange={(e) => void save({ auto_organize: e.target.checked })} />
-          <span>Automatic organization<span className="muted small"> Sort files dropped into the Super Folder right away, without a preview.</span></span>
+          <span>Automatic organization<span className="muted small"> Sort files dropped into your DeskZero right away, without a preview.</span></span>
         </label>
         <label className="check">
           <input type="checkbox" checked={s.confirm_before_move} onChange={(e) => void save({ confirm_before_move: e.target.checked })} />
@@ -152,7 +152,7 @@ function SearchSection({ settings: s, save }: SectionProps) {
         The list refreshes every 20 minutes and never leaves this computer.
       </p>
       {!custom && (
-        <p className="small">Searching your usual folders (Desktop, Documents, Downloads, Pictures, Music, Videos) plus the Super Folder and watch folders.</p>
+        <p className="small">Searching your usual folders (Desktop, Documents, Downloads, Pictures, Music, Videos) plus your DeskZero and watch folders.</p>
       )}
       {custom &&
         s.search_roots.map((r) => (
@@ -217,7 +217,7 @@ function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: 
       <h2>About</h2>
       <div className="about-row">
         <div>
-          <div className="about-title">Super Folder {version && <span className="muted">version {version}</span>}</div>
+          <div className="about-title">DeskZero {version && <span className="muted">version {version}</span>}</div>
           <div className="muted small">
             {st.kind === "idle" && "Updates are only checked when you ask."}
             {st.kind === "checking" && "Checking GitHub for a newer version…"}
@@ -238,10 +238,10 @@ function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: 
       {st.kind === "available" && st.update.body && <pre className="release-notes">{st.update.body}</pre>}
       <label className="check">
         <input type="checkbox" checked={s.check_updates_weekly} onChange={(e) => void save({ check_updates_weekly: e.target.checked })} />
-        <span>Check for updates weekly<span className="muted small"> The only time Super Folder goes online. Off by default.</span></span>
+        <span>Check for updates weekly<span className="muted small"> The only time DeskZero goes online. Off by default.</span></span>
       </label>
       <p className="muted small">
-        Works offline. No account, no cloud, no telemetry. Updates are downloaded from github.com/imjagdeep/super-folder and
+        Works offline. No account, no cloud, no telemetry. Updates are downloaded from github.com/imjagdeep/deskzero and
         signature-checked before installing. Settings, rules and history are stored in{" "}
         <button className="link" onClick={() => api.openFolder(dataDir).catch(toastError)}>{dataDir}</button>.
       </p>

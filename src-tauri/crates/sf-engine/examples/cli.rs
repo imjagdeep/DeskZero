@@ -50,7 +50,7 @@ fn cmd_plan(paths: &[String]) -> Result<(), String> {
     }
     let cfg = load_config();
     let inputs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let plan = sf_engine::plan_inputs(&inputs, &cfg.rules, &cfg.settings, PlanMode::SuperFolder);
+    let plan = sf_engine::plan_inputs(&inputs, &cfg.rules, &cfg.settings, PlanMode::OrganizeRoot);
     print_plan(&plan);
     Ok(())
 }
@@ -61,7 +61,7 @@ fn cmd_organize(paths: &[String]) -> Result<(), String> {
     }
     let cfg = load_config();
     let inputs: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
-    let plan = sf_engine::plan_inputs(&inputs, &cfg.rules, &cfg.settings, PlanMode::SuperFolder);
+    let plan = sf_engine::plan_inputs(&inputs, &cfg.rules, &cfg.settings, PlanMode::OrganizeRoot);
     print_plan(&plan);
 
     let moves = plan.iter().filter(|op| op.is_executable()).count();
@@ -332,7 +332,7 @@ fn cmd_watch(paths: &[String]) -> Result<(), String> {
 fn cmd_demo() -> Result<(), String> {
     // A throwaway tree so anyone can see the planner work without setup.
     let tmp = tempfile::tempdir().map_err(|e| e.to_string())?;
-    let sf = tmp.path().join("Super Folder");
+    let sf = tmp.path().join("DeskZero");
     std::fs::create_dir_all(&sf).unwrap();
     for f in [
         "photo.jpg",
@@ -354,10 +354,10 @@ fn cmd_demo() -> Result<(), String> {
         .filter(|p| p.is_file())
         .collect();
     let settings = sf_engine::types::Settings {
-        super_folder: Some(sf),
+        organize_root: Some(sf),
         ..Default::default()
     };
-    let plan = sf_engine::plan_inputs(&inputs, &[], &settings, PlanMode::SuperFolder);
+    let plan = sf_engine::plan_inputs(&inputs, &[], &settings, PlanMode::OrganizeRoot);
     println!("demo tree: {}", tmp.path().display());
     print_plan(&plan);
     Ok(())

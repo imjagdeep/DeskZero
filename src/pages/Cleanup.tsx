@@ -19,7 +19,7 @@ export function Cleanup() {
   const [days, setDays] = useState(90);
   const [busy, setBusy] = useState(false);
 
-  const src = folder ?? downloads ?? cfg?.settings.super_folder ?? "";
+  const src = folder ?? downloads ?? cfg?.settings.organize_root ?? "";
   const target = dest ?? (src ? join(src, "Archive") : "");
 
   async function preview() {

@@ -16,7 +16,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     let status = MenuItem::with_id(app, "status", "Not watching", false, None::<&str>)?;
     let organize = MenuItem::with_id(app, "organize", "Organize Now", true, None::<&str>)?;
     let pause = MenuItem::with_id(app, "pause", "Pause", true, None::<&str>)?;
-    let open_sf = MenuItem::with_id(app, "open_sf", "Open Super Folder", true, None::<&str>)?;
+    let open_sf = MenuItem::with_id(app, "open_sf", "Open DeskZero", true, None::<&str>)?;
     let show = MenuItem::with_id(app, "show", "Open", true, None::<&str>)?;
     let settings = MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
     let quit = MenuItem::with_id(app, "quit", "Exit", true, None::<&str>)?;
@@ -37,7 +37,7 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
     )?;
 
     let mut builder = TrayIconBuilder::with_id("main")
-        .tooltip("Super Folder")
+        .tooltip("DeskZero")
         .menu(&menu)
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
@@ -57,12 +57,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
                     .lock()
                     .cfg
                     .settings
-                    .super_folder
+                    .organize_root
                     .clone();
                 match sf {
                     Some(p) => {
                         if let Err(e) = crate::commands::open_folder(app.clone(), p) {
-                            tracing::warn!("open super folder failed: {e}");
+                            tracing::warn!("open organize root failed: {e}");
                         }
                     }
                     None => {
@@ -122,7 +122,7 @@ pub fn refresh(app: &AppHandle, s: &Status) {
         .set_text(if s.paused { "Resume" } else { "Pause" });
     if let Some(tray) = app.tray_by_id("main") {
         let tip = format!(
-            "Super Folder: {} organized today, {} waiting, {} need attention",
+            "DeskZero: {} organized today, {} waiting, {} need attention",
             s.organized_today, s.pending, s.needs_attention
         );
         let _ = tray.set_tooltip(Some(tip));

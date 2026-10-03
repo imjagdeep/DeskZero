@@ -29,7 +29,7 @@ pub struct ConfigDto {
     settings: Settings,
     rules: Vec<Rule>,
     data_dir: PathBuf,
-    suggested_super_folder: Option<PathBuf>,
+    suggested_organize_root: Option<PathBuf>,
 }
 
 #[tauri::command]
@@ -39,7 +39,7 @@ pub fn get_config(app: AppHandle, state: State<'_, AppState>) -> ConfigDto {
         settings: g.cfg.settings.clone(),
         rules: g.cfg.rules.clone(),
         data_dir: g.cfg.data_dir.clone(),
-        suggested_super_folder: app.path().home_dir().ok().map(|h| h.join("Super Folder")),
+        suggested_organize_root: app.path().home_dir().ok().map(|h| h.join("DeskZero")),
     }
 }
 
@@ -50,7 +50,7 @@ pub fn save_settings(
     settings: Settings,
 ) -> CmdResult<()> {
     validate_settings(&settings)?;
-    if let Some(sf) = &settings.super_folder {
+    if let Some(sf) = &settings.organize_root {
         std::fs::create_dir_all(sf).map_err(|e| format!("cannot create {}: {e}", sf.display()))?;
     }
     apply_autostart(&app, settings.start_with_system)?;
@@ -71,7 +71,7 @@ pub fn save_settings(
         g.cfg
             .save_settings()
             .map_err(|e| format!("could not save settings: {e}"))?;
-        organizer::scan_super_folder(&mut g);
+        organizer::scan_organize_root(&mut g);
     }
     organizer::restart_watcher(&app);
     if roots_changed {
@@ -96,11 +96,11 @@ fn apply_autostart(app: &AppHandle, wanted: bool) -> CmdResult<()> {
     result.map_err(|e| format!("could not change start with system: {e}"))
 }
 
-/// Guards from the spec: absolute paths only, and the Super Folder and
+/// Guards from the spec: absolute paths only, and your DeskZero and
 /// watch folders must not contain one another.
 fn validate_settings(s: &Settings) -> CmdResult<()> {
     let mut all: Vec<&PathBuf> = s.watch_folders.iter().map(|w| &w.path).collect();
-    if let Some(sf) = &s.super_folder {
+    if let Some(sf) = &s.organize_root {
         all.push(sf);
     }
     for p in &all {
@@ -123,7 +123,7 @@ fn validate_settings(s: &Settings) -> CmdResult<()> {
 }
 
 /// A rule must have a name and conditions, and a relative destination must
-/// stay inside the Super Folder (no `..`, no drive or root prefix).
+/// stay inside your DeskZero (no `..`, no drive or root prefix).
 fn validate_rule(r: &Rule) -> CmdResult<()> {
     if r.name.trim().is_empty() {
         return Err("every rule needs a name".into());
@@ -144,7 +144,7 @@ fn validate_rule(r: &Rule) -> CmdResult<()> {
             });
             if escapes {
                 return Err(format!(
-                    "rule \"{}\": a relative destination must stay inside the Super Folder",
+                    "rule \"{}\": a relative destination must stay inside your DeskZero",
                     r.name
                 ));
             }
@@ -179,18 +179,18 @@ pub fn get_status(state: State<'_, AppState>) -> Status {
     organizer::status(&state.lock())
 }
 
-/// Plan dropped paths (from anywhere) into the Super Folder. No moves.
+/// Plan dropped paths (from anywhere) into your DeskZero. No moves.
 #[tauri::command]
 pub fn plan_paths(state: State<'_, AppState>, paths: Vec<PathBuf>) -> CmdResult<Vec<PlannedOp>> {
     let g = state.lock();
-    if g.cfg.settings.super_folder.is_none() {
-        return Err("choose a Super Folder in Settings first".into());
+    if g.cfg.settings.organize_root.is_none() {
+        return Err("choose a DeskZero in Settings first".into());
     }
     Ok(sf_engine::plan_inputs(
         &paths,
         &g.cfg.rules,
         &g.cfg.settings,
-        PlanMode::SuperFolder,
+        PlanMode::OrganizeRoot,
     ))
 }
 
@@ -499,7 +499,7 @@ pub fn import_rules(
     let text = std::fs::read_to_string(&path)
         .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
     let parsed: RulesExport =
-        serde_json::from_str(&text).map_err(|e| format!("not a Super Folder rules file: {e}"))?;
+        serde_json::from_str(&text).map_err(|e| format!("not a DeskZero rules file: {e}"))?;
     let mut incoming = parsed.rules;
     for r in &incoming {
         validate_rule(r)?;
@@ -531,7 +531,7 @@ pub fn import_rules(
 
 /// Folders undo must never remove even when empty.
 fn protected_folders(s: &Settings) -> Vec<PathBuf> {
-    let mut v: Vec<PathBuf> = s.super_folder.iter().cloned().collect();
+    let mut v: Vec<PathBuf> = s.organize_root.iter().cloned().collect();
     v.extend(s.watch_folders.iter().map(|w| w.path.clone()));
     v
 }
@@ -611,7 +611,7 @@ pub async fn storage_overview(app: AppHandle) -> CmdResult<Vec<sf_engine::tidy::
         .lock()
         .cfg
         .settings
-        .super_folder
+        .organize_root
         .clone();
     let Some(root) = root else {
         return Ok(Vec::new());

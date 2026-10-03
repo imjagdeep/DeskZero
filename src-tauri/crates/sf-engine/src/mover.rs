@@ -101,7 +101,7 @@ pub fn undo(
 
 /// Undo, then remove folders the batch left empty (e.g. `Images/2026/10`).
 /// Walks up from each moved-out file's folder, removing only empty folders,
-/// and never removes a folder in `protect` (Super Folder, watch folders) or
+/// and never removes a folder in `protect` (DeskZero, watch folders) or
 /// any folder that contains the restored file.
 pub fn undo_with_cleanup(
     entry: &HistoryEntry,
@@ -308,7 +308,7 @@ mod tests {
 
     fn settings_with_super(sf: &Path) -> Settings {
         Settings {
-            super_folder: Some(sf.to_path_buf()),
+            organize_root: Some(sf.to_path_buf()),
             ..Settings::default()
         }
     }
@@ -316,7 +316,7 @@ mod tests {
     #[test]
     fn execute_moves_and_records_history() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         fs::create_dir_all(&sf).unwrap();
         let pdf = tmp.path().join("report.pdf");
         fs::write(&pdf, b"data").unwrap();
@@ -326,7 +326,7 @@ mod tests {
             std::slice::from_ref(&pdf),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         let mut counter = 0u64;
         let result = execute(
@@ -352,7 +352,7 @@ mod tests {
     #[test]
     fn undo_restores_original_layout() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         fs::create_dir_all(&sf).unwrap();
         let pdf = tmp.path().join("report.pdf");
         fs::write(&pdf, b"data").unwrap();
@@ -361,7 +361,7 @@ mod tests {
 
         let settings = settings_with_super(&sf);
         let inputs = vec![pdf.clone(), jpg.clone()];
-        let plan = plan_inputs(&inputs, &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(&inputs, &[], &settings, PlanMode::OrganizeRoot);
         let mut counter = 0u64;
         let hist = tmp.path().join("history.jsonl");
         let result = execute(
@@ -384,7 +384,7 @@ mod tests {
     #[test]
     fn replace_quarantines_instead_of_deleting() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         let existing = docs.join("report.pdf");
@@ -400,7 +400,7 @@ mod tests {
             std::slice::from_ref(&incoming),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         assert!(matches!(plan[0].status, PlanStatus::Move { replace: true }));
 
@@ -427,7 +427,7 @@ mod tests {
     #[test]
     fn unresolved_asks_are_skipped_not_moved() {
         let tmp = tempfile::tempdir().unwrap();
-        let sf = tmp.path().join("Super Folder");
+        let sf = tmp.path().join("DeskZero");
         let docs = sf.join("Documents");
         fs::create_dir_all(&docs).unwrap();
         fs::write(docs.join("a.pdf"), b"old").unwrap();
@@ -442,7 +442,7 @@ mod tests {
             std::slice::from_ref(&incoming),
             &[],
             &settings,
-            PlanMode::SuperFolder,
+            PlanMode::OrganizeRoot,
         );
         let mut counter = 0u64;
         let result = execute(

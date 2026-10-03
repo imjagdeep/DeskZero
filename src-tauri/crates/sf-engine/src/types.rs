@@ -1,4 +1,4 @@
-//! Shared domain types for the Super Folder engine.
+//! Shared domain types for your DeskZero engine.
 //!
 //! Everything here is plain data (serde-friendly) so the same types serve
 //! the config files, the engine internals, the CLI harness and — later —
@@ -27,7 +27,7 @@ pub enum Category {
 }
 
 impl Category {
-    /// The exact subfolder name created inside the Super Folder.
+    /// The exact subfolder name created inside your DeskZero.
     pub fn folder_name(&self) -> &'static str {
         match self {
             Category::Images => "Images",
@@ -166,7 +166,7 @@ pub struct Condition {
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
 pub enum Destination {
-    /// `<super folder>/<Category folder>/filename`
+    /// `<organize root>/<Category folder>/filename`
     Category { category: Category },
     /// An absolute folder path chosen by the user.
     Custom { path: PathBuf },
@@ -282,8 +282,8 @@ impl PlannedOp {
 /// How a batch of files reached the planner (drives the no-rule fallback).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlanMode {
-    /// Files dropped into the Super Folder: unmatched files go to `Other/`.
-    SuperFolder,
+    /// Files dropped into your DeskZero: unmatched files go to `Other/`.
+    OrganizeRoot,
     /// Files found in a watch folder: unmatched files stay put ("needs attention").
     WatchFolder,
 }
@@ -293,10 +293,12 @@ pub enum PlanMode {
 pub struct Settings {
     #[serde(default)]
     pub version: u32,
-    pub super_folder: Option<PathBuf>,
+    /// The folder DeskZero organizes. `alias` keeps pre-0.3 settings.json loading.
+    #[serde(default, alias = "super_folder")]
+    pub organize_root: Option<PathBuf>,
     #[serde(default)]
     pub watch_folders: Vec<WatchFolder>,
-    /// Super Folder: organize immediately on drop without a preview step.
+    /// DeskZero: organize immediately on drop without a preview step.
     #[serde(default)]
     pub auto_organize: bool,
     /// Watch folders: show a confirmation before moving.
@@ -328,7 +330,7 @@ pub struct Settings {
     /// Check GitHub for a newer version once a week (off = only on request).
     #[serde(default)]
     pub check_updates_weekly: bool,
-    /// Windows: "Organize with Super Folder" in the right-click menu.
+    /// Windows: "Organize with DeskZero" in the right-click menu.
     #[serde(default)]
     pub context_menu: bool,
 }
@@ -358,7 +360,7 @@ impl Default for Settings {
     fn default() -> Self {
         Settings {
             version: 1,
-            super_folder: None,
+            organize_root: None,
             watch_folders: Vec::new(),
             auto_organize: false,
             confirm_before_move: true,
@@ -378,8 +380,8 @@ impl Default for Settings {
 }
 
 /// The root-relative anchor a Custom destination with a relative path uses.
-/// (Relative custom paths are resolved against the Super Folder.)
-pub const CUSTOM_DEST_BASE: &str = "super_folder";
+/// (Relative custom paths are resolved against your DeskZero.)
+pub const CUSTOM_DEST_BASE: &str = "organize_root";
 
 #[cfg(test)]
 mod tests {

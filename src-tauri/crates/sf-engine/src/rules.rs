@@ -132,7 +132,7 @@ pub fn rule_matches(rule: &Rule, meta: &FileMeta) -> bool {
 
 /// Resolve a destination for a file: filename tier → custom tier → extension
 /// tier. Returns the winning rule. No default fallback here — the caller
-/// decides what "no rule matched" means (Super Folder → Other, watch folder →
+/// decides what "no rule matched" means (DeskZero → Other, watch folder →
 /// leave in place).
 pub fn resolve<'r>(rules: &'r [Rule], meta: &FileMeta) -> Option<&'r Rule> {
     for kind in [RuleKind::Filename, RuleKind::Custom, RuleKind::Extension] {
