@@ -198,7 +198,7 @@ fn symlinks_move_as_links_not_targets() {
     std::os::unix::fs::symlink(&target, &link).unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&[link.clone()], &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(std::slice::from_ref(&link), &[], &s, PlanMode::SuperFolder);
     let mut counter = 0u64;
     mover::execute(
         &plan,

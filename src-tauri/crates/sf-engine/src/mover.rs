@@ -235,7 +235,7 @@ fn move_raw(src: &Path, dst: &Path) -> io::Result<()> {
 fn is_cross_volume(e: &io::Error) -> bool {
     #[cfg(unix)]
     {
-        return e.raw_os_error() == Some(libc_EXDEV);
+        e.raw_os_error() == Some(EXDEV)
     }
     #[cfg(windows)]
     {
@@ -250,7 +250,7 @@ fn is_cross_volume(e: &io::Error) -> bool {
 }
 
 #[cfg(unix)]
-const libc_EXDEV: i32 = 18;
+const EXDEV: i32 = 18;
 
 fn copy_remove(src: &Path, dst: &Path) -> io::Result<()> {
     if src.is_dir() {

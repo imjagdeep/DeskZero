@@ -277,9 +277,9 @@ fn cmd_watch(paths: &[String]) -> Result<(), String> {
         cfg.settings.auto_organize
     );
     let mut counter = 0u64;
-    loop {
-        match rx.recv() {
-            Ok(batch) => {
+    while let Ok(batch) = rx.recv() {
+        {
+            {
                 // Re-read config each batch so rule edits apply live.
                 let cfg = load_config();
                 let plan = sf_engine::plan_inputs(
@@ -306,7 +306,6 @@ fn cmd_watch(paths: &[String]) -> Result<(), String> {
                     );
                 }
             }
-            Err(_) => break,
         }
     }
     handle.stop();

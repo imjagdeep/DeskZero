@@ -11,7 +11,7 @@
 //! to the caller's sink channel.
 
 use notify_debouncer_full::notify::{Event, EventKind, RecommendedWatcher, RecursiveMode};
-use notify_debouncer_full::{new_debouncer, Debouncer, FileIdMap};
+use notify_debouncer_full::{new_debouncer, Debouncer, RecommendedCache};
 use std::collections::HashMap;
 use std::fs;
 use std::io;
@@ -37,7 +37,7 @@ const TEMP_SUFFIXES: &[&str] = &["crdownload", "part", "tmp", "partial", "downlo
 /// Handle to a running watch. Dropping it stops the threads.
 pub struct WatchHandle {
     stop: Arc<AtomicBool>,
-    debouncer: Option<Debouncer<RecommendedWatcher, FileIdMap>>,
+    debouncer: Option<Debouncer<RecommendedWatcher, RecommendedCache>>,
     threads: Vec<JoinHandle<()>>,
 }
 
@@ -64,7 +64,7 @@ pub fn start(folders: &[PathBuf]) -> io::Result<(WatchHandle, Receiver<Vec<PathB
     let (raw_tx, raw_rx) = channel::<PathBuf>();
     let stop = Arc::new(AtomicBool::new(false));
 
-    let mut debouncer: Debouncer<RecommendedWatcher, FileIdMap> = new_debouncer(
+    let mut debouncer: Debouncer<RecommendedWatcher, RecommendedCache> = new_debouncer(
         DEBOUNCE,
         None,
         move |result: notify_debouncer_full::DebounceEventResult| {
