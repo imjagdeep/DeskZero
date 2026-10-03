@@ -2,6 +2,7 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import { PageHeader, pickFolder } from "../components/Common";
+import { AlertIcon, CheckCircleIcon, ClockIcon, DropIcon, PauseIcon, PlayIcon } from "../components/Icons";
 import { PreviewModal } from "../components/PreviewModal";
 import { api } from "../lib/api";
 import { fileName } from "../lib/format";
@@ -73,23 +74,26 @@ export function Home() {
       <p className="muted path-line" title={sf}>{sf}</p>
 
       <div className={dragging ? "dropzone active" : "dropzone"}>
-        <div className="dropzone-icon" aria-hidden="true">⇩</div>
-        <div>Drop files here</div>
+        <div className="dropzone-icon"><DropIcon size={30} /></div>
+        <div className="dropzone-title">Drop files here</div>
         <div className="muted small">or put them in the Super Folder: you'll see a preview before anything moves</div>
       </div>
 
       <div className="stats">
-        <div className="stat">
+        <div className="stat accent">
+          <span className="stat-icon"><ClockIcon size={20} /></span>
           <span className="stat-num">{status?.pending ?? 0}</span>
-          <span>files waiting</span>
+          <span className="stat-label">Files waiting</span>
         </div>
         <div className="stat ok">
-          <span className="stat-num">✓ {status?.organized_today ?? 0}</span>
-          <span>organized today</span>
+          <span className="stat-icon"><CheckCircleIcon size={20} /></span>
+          <span className="stat-num">{status?.organized_today ?? 0}</span>
+          <span className="stat-label">Organized today</span>
         </div>
         <div className={status && status.needs_attention > 0 ? "stat warn" : "stat"}>
-          <span className="stat-num">⚠ {status?.needs_attention ?? 0}</span>
-          <span>need attention</span>
+          <span className="stat-icon"><AlertIcon size={20} /></span>
+          <span className="stat-num">{status?.needs_attention ?? 0}</span>
+          <span className="stat-label">Need attention</span>
         </div>
       </div>
 
@@ -97,7 +101,8 @@ export function Home() {
         <button className="primary big" onClick={showPending} disabled={!status || status.pending === 0}>
           Organize Files
         </button>
-        <button onClick={() => api.setPaused(!status?.paused).then(refreshStatus).catch(toastError)}>
+        <button className="with-icon" onClick={() => api.setPaused(!status?.paused).then(refreshStatus).catch(toastError)}>
+          {status?.paused ? <PlayIcon size={15} /> : <PauseIcon size={15} />}
           {status?.paused ? "Resume monitoring" : "Pause monitoring"}
         </button>
       </div>

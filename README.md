@@ -10,9 +10,9 @@ Put files into one folder, the **Super Folder**, and they get sorted into `Image
 
 ![Home screen](docs/screenshot-home.png)
 
-| Preview before moving | Simple rules | Dark mode |
+| Preview before moving (dark mode) | Simple rules | Settings |
 |---|---|---|
-| ![Preview](docs/screenshot-preview.png) | ![Rules](docs/screenshot-rules.png) | ![Dark mode](docs/screenshot-dark.png) |
+| ![Preview](docs/screenshot-preview.png) | ![Rules](docs/screenshot-rules.png) | ![Settings](docs/screenshot-settings.png) |
 
 ## Features
 
