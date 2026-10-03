@@ -11,6 +11,7 @@ pub mod mover;
 pub mod plan;
 pub mod rules;
 pub mod types;
+pub mod watcher;
 
 pub use config::Config;
 pub use history::{HistoryEntry, HistoryKind};

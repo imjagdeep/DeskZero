@@ -5,9 +5,10 @@
 //!   sf-cli organize <path> [...]         Plan and execute (with preview prompt)
 //!   sf-cli undo                          Undo the most recent batch
 //!   sf-cli history                       Show recorded operations
+//!   sf-cli watch <folder> [...]          Watch folders and auto-organize
 //!   sf-cli demo                          Build a demo tree in a tempdir and plan it
 //!
-//! Later milestones add: watch / dupes / search.
+//! Later milestones add: dupes / search.
 
 use sf_engine::mover::{self, AskResolution};
 use sf_engine::types::{PlanMode, PlanStatus, PlannedOp};
@@ -25,6 +26,7 @@ fn main() {
         "organize" => cmd_organize(&args[1..]),
         "undo" => cmd_undo(),
         "history" => cmd_history(),
+        "watch" => cmd_watch(&args[1..]),
         "demo" => cmd_demo(),
         other => Err(format!("unknown command: {other}")),
     };
@@ -143,6 +145,57 @@ fn cmd_history() -> Result<(), String> {
 fn load_config() -> sf_engine::Config {
     let data_dir = sf_engine::Config::default_dir().unwrap_or_else(|| PathBuf::from("."));
     sf_engine::Config::load(&data_dir)
+}
+
+fn cmd_watch(paths: &[String]) -> Result<(), String> {
+    if paths.is_empty() {
+        return Err("watch needs at least one folder".into());
+    }
+    let folders: Vec<PathBuf> = paths.iter().map(PathBuf::from).collect();
+    for f in &folders {
+        if !f.is_dir() {
+            return Err(format!("not a folder: {}", f.display()));
+        }
+    }
+    let cfg = load_config();
+    let (mut handle, rx) = sf_engine::watcher::start(&folders).map_err(|e| e.to_string())?;
+
+    println!(
+        "watching {} folder(s). Ctrl+C to stop. auto_organize={}",
+        folders.len(),
+        cfg.settings.auto_organize
+    );
+    let mut counter = 0u64;
+    loop {
+        match rx.recv() {
+            Ok(batch) => {
+                // Re-read config each batch so rule edits apply live.
+                let cfg = load_config();
+                let plan =
+                    sf_engine::plan_inputs(&batch, &cfg.rules, &cfg.settings, PlanMode::WatchFolder);
+                print_plan(&plan);
+                if cfg.settings.auto_organize && !cfg.settings.paused {
+                    let result = mover::execute(
+                        &plan,
+                        &cfg.history_path(),
+                        &cfg.data_dir.join("quarantine"),
+                        &mut counter,
+                        AskResolution::Skip,
+                    )
+                    .map_err(|e| e.to_string())?;
+                    println!(
+                        "organized: {} moved, {} failed, {} skipped",
+                        result.entry.items.len(),
+                        result.entry.failed.len(),
+                        result.skipped.len()
+                    );
+                }
+            }
+            Err(_) => break,
+        }
+    }
+    handle.stop();
+    Ok(())
 }
 
 fn cmd_demo() -> Result<(), String> {
