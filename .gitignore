@@ -21,3 +21,6 @@ desktop.ini
 # --- Editors ---
 .vscode/
 .idea/
+
+# --- Tauri generated ---
+src-tauri/gen/

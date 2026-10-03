@@ -8,9 +8,27 @@ use std::path::{Path, PathBuf};
 
 /// Are two paths the same? Case-insensitive comparison on Windows and macOS
 /// (their default filesystems are), case-sensitive elsewhere.
+/// Compares components, not raw strings, so `a/b` and `a\b` match on Windows
+/// (rule destinations are often typed with forward slashes).
 pub fn paths_equal(a: &Path, b: &Path) -> bool {
     if cfg!(windows) || cfg!(target_os = "macos") {
-        a.to_string_lossy().eq_ignore_ascii_case(&b.to_string_lossy())
+        let mut ca = a.components();
+        let mut cb = b.components();
+        loop {
+            match (ca.next(), cb.next()) {
+                (None, None) => return true,
+                (Some(x), Some(y)) => {
+                    if !x
+                        .as_os_str()
+                        .to_string_lossy()
+                        .eq_ignore_ascii_case(&y.as_os_str().to_string_lossy())
+                    {
+                        return false;
+                    }
+                }
+                _ => return false,
+            }
+        }
     } else {
         a == b
     }
@@ -30,7 +48,10 @@ pub fn dest_exists(candidate: &Path) -> io::Result<bool> {
     let Some(parent) = candidate.parent() else {
         return Ok(false);
     };
-    let Some(want) = candidate.file_name().map(|n| n.to_string_lossy().to_lowercase()) else {
+    let Some(want) = candidate
+        .file_name()
+        .map(|n| n.to_string_lossy().to_lowercase())
+    else {
         return Ok(false);
     };
     let entries = match fs::read_dir(parent) {
@@ -110,6 +131,20 @@ mod tests {
         fs::write(&p, b"x").unwrap();
         let free = probe_free_name(&p).unwrap();
         assert_eq!(free.file_name().unwrap(), "backup.tar (1).gz");
+    }
+
+    #[cfg(windows)]
+    #[test]
+    fn paths_equal_ignores_separator_style_and_case() {
+        assert!(paths_equal(
+            Path::new(r"C:\SF\Documents\Invoices\a.pdf"),
+            Path::new("C:/sf/Documents/Invoices\\a.pdf")
+        ));
+        assert!(!paths_equal(
+            Path::new(r"C:\SF\a.pdf"),
+            Path::new(r"C:\SF\b.pdf")
+        ));
+        assert!(!paths_equal(Path::new(r"C:\SF\a"), Path::new(r"C:\SF\a\b")));
     }
 
     #[test]
