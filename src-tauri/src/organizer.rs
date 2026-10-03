@@ -53,6 +53,8 @@ pub fn watched_folders(settings: &Settings) -> Vec<PathBuf> {
 /// nothing to watch means no watcher at all.
 pub fn restart_watcher(app: &AppHandle) {
     let state = app.state::<AppState>();
+    let moved;
+    let notify;
     {
         let mut g = state.lock();
         if let Some(mut h) = g.watcher.take() {
@@ -78,8 +80,48 @@ pub fn restart_watcher(app: &AppHandle) {
                 }
             }
         }
+        moved = run_waiting_if_automatic(&mut g);
+        notify = g.cfg.settings.notifications;
+    }
+    if moved > 0 {
+        if notify {
+            send_notification(app, &format!("Organized {moved} file{}", plural(moved)));
+        }
+        let _ = app.emit("pending-changed", ());
+        let _ = app.emit("history-changed", ());
     }
     emit_status(app);
+}
+
+/// Automatic mode also covers files that were already waiting (found at
+/// startup, or queued before the setting was switched on), not just new
+/// ones. Returns how many files were moved.
+fn run_waiting_if_automatic(g: &mut Inner) -> usize {
+    if g.cfg.settings.paused {
+        return 0;
+    }
+    let mut moved = 0;
+    if g.cfg.settings.auto_organize && !g.pending_super.is_empty() {
+        g.pending_super.retain(|p| p.exists());
+        let plan = sf_engine::plan_inputs(
+            &g.pending_super,
+            &g.cfg.rules,
+            &g.cfg.settings,
+            PlanMode::SuperFolder,
+        );
+        moved += run_plan(g, &plan).moved;
+    }
+    if !g.cfg.settings.confirm_before_move && !g.pending_watch.is_empty() {
+        g.pending_watch.retain(|p| p.exists());
+        let plan = sf_engine::plan_inputs(
+            &g.pending_watch,
+            &g.cfg.rules,
+            &g.cfg.settings,
+            PlanMode::WatchFolder,
+        );
+        moved += run_plan(g, &plan).moved;
+    }
+    moved
 }
 
 fn in_super_folder(path: &Path, settings: &Settings) -> bool {
