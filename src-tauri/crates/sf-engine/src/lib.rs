@@ -1,0 +1,15 @@
+//! Super Folder engine — pure Rust, no Tauri dependencies.
+//!
+//! Everything testable lives here. The Tauri command layer (later) is a thin
+//! adapter over this crate.
+
+pub mod classify;
+pub mod config;
+pub mod fsutil;
+pub mod plan;
+pub mod rules;
+pub mod types;
+
+pub use config::Config;
+pub use plan::{file_meta, plan_inputs};
+pub use types::*;

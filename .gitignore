@@ -1,0 +1,23 @@
+# --- Rust / Tauri ---
+src-tauri/target/
+**/*.rs.bk
+*.pdb
+
+# --- Node / front end ---
+node_modules/
+dist/
+*.local
+
+# --- Runtime data (never commit local state) ---
+*.jsonl
+settings.json
+rules.json
+
+# --- OS junk ---
+Thumbs.db
+.DS_Store
+desktop.ini
+
+# --- Editors ---
+.vscode/
+.idea/
