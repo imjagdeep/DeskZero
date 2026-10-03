@@ -122,6 +122,8 @@ All conditions in a rule must match. A rule with no conditions never matches.
 - Other conflict choices: **Skip**, **Replace** (the old file is set aside so Undo can bring it back) or **Ask**.
 - Waits until a download has finished (size stable for a moment; `.crdownload`, `.part`, `.tmp` are ignored).
 - Retries locked files, and reports permission errors and disconnected drives without stopping the batch.
+- Only files directly in the Super Folder or a watch folder are organized. Subfolders, including your own folders, are never touched.
+- Hidden and system files (`desktop.ini`, `Thumbs.db`, `.DS_Store`, Office `~$` lock files) are left alone.
 - Symbolic links are moved as links, never followed. A folder can't be moved into itself, and the Super Folder and watch folders can't be inside one another.
 - Unicode file names and large files are handled.
 

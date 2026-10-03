@@ -73,6 +73,11 @@ fn plan_one(
     mode: PlanMode,
     out: &mut Vec<PlannedOp>,
 ) {
+    // desktop.ini, Thumbs.db, .DS_Store, Office lock files and anything the
+    // OS marks hidden/system belong where they are: never planned.
+    if crate::fsutil::is_hidden_or_system(path) {
+        return;
+    }
     let meta = match file_meta(path) {
         Ok(m) => m,
         Err(e) => {

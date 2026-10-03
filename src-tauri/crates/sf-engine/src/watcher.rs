@@ -83,8 +83,10 @@ pub fn start(folders: &[PathBuf]) -> io::Result<(WatchHandle, Receiver<Vec<PathB
             tracing::warn!("skipping symlinked watch folder {}", folder.display());
             continue;
         }
+        // Only files directly in the folder: subfolders (the user's own,
+        // and the category folders we create) are never touched.
         debouncer
-            .watch(folder, RecursiveMode::Recursive)
+            .watch(folder, RecursiveMode::NonRecursive)
             .map_err(to_io)?;
     }
 

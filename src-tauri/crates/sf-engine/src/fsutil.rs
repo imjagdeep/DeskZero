@@ -97,6 +97,37 @@ pub fn probe_free_name(path: &Path) -> io::Result<PathBuf> {
     ))
 }
 
+/// Files the organizer must leave alone: OS metadata files, dotfiles,
+/// Office `~$` lock files, and (on Windows) anything with the hidden or
+/// system attribute.
+pub fn is_hidden_or_system(path: &Path) -> bool {
+    let name = match path.file_name() {
+        Some(n) => n.to_string_lossy().to_lowercase(),
+        None => return false,
+    };
+    if name.starts_with('.') || name.starts_with("~$") {
+        return true;
+    }
+    if matches!(
+        name.as_str(),
+        "desktop.ini" | "thumbs.db" | "ehthumbs.db" | "$recycle.bin"
+    ) {
+        return true;
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::MetadataExt;
+        const HIDDEN: u32 = 0x2;
+        const SYSTEM: u32 = 0x4;
+        if let Ok(md) = fs::symlink_metadata(path) {
+            if md.file_attributes() & (HIDDEN | SYSTEM) != 0 {
+                return true;
+            }
+        }
+    }
+    false
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -145,6 +176,19 @@ mod tests {
             Path::new(r"C:\SF\b.pdf")
         ));
         assert!(!paths_equal(Path::new(r"C:\SF\a"), Path::new(r"C:\SF\a\b")));
+    }
+
+    #[test]
+    fn system_and_hidden_files_are_recognised() {
+        let dir = tempfile::tempdir().unwrap();
+        for name in ["desktop.ini", "Thumbs.db", ".DS_Store", "~$report.docx"] {
+            let p = dir.path().join(name);
+            fs::write(&p, b"x").unwrap();
+            assert!(is_hidden_or_system(&p), "{name}");
+        }
+        let normal = dir.path().join("report.docx");
+        fs::write(&normal, b"x").unwrap();
+        assert!(!is_hidden_or_system(&normal));
     }
 
     #[test]
