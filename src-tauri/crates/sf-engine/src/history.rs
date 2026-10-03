@@ -61,8 +61,8 @@ pub fn new_op_id(counter: u64) -> String {
 /// Append an entry and flush. Failure to write history must not lose the
 /// moves that already happened — callers log loudly instead of erroring out.
 pub fn append(path: &Path, entry: &HistoryEntry) -> io::Result<()> {
-    let line = serde_json::to_string(entry)
-        .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
+    let line =
+        serde_json::to_string(entry).map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))?;
     let mut f = OpenOptions::new().create(true).append(true).open(path)?;
     writeln!(f, "{line}")?;
     f.flush()
@@ -183,7 +183,11 @@ mod tests {
     fn compact_drops_old_entries() {
         let dir = tempfile::tempdir().unwrap();
         let p = dir.path().join("history.jsonl");
-        append(&p, &entry("ancient", Utc::now() - chrono::Duration::days(200))).unwrap();
+        append(
+            &p,
+            &entry("ancient", Utc::now() - chrono::Duration::days(200)),
+        )
+        .unwrap();
         append(&p, &entry("fresh", Utc::now())).unwrap();
 
         compact(&p, 90).unwrap();

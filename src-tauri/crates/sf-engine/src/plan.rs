@@ -76,12 +76,7 @@ fn plan_one(
     let meta = match file_meta(path) {
         Ok(m) => m,
         Err(e) => {
-            out.push(skipped(
-                path,
-                path,
-                format!("cannot read metadata: {e}"),
-                0,
-            ));
+            out.push(skipped(path, path, format!("cannot read metadata: {e}"), 0));
             return;
         }
     };
@@ -109,26 +104,21 @@ fn plan_one(
     out.push(plan_file(&meta, rules, settings, mode));
 }
 
-fn plan_file(
-    meta: &FileMeta,
-    rules: &[Rule],
-    settings: &Settings,
-    mode: PlanMode,
-) -> PlannedOp {
+fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMode) -> PlannedOp {
     let src = meta.path.clone();
 
     let (rule_id, rule_name, destination) = match rules::resolve_destination(rules, meta) {
-        Some((rule, dest)) => (
-            Some(rule.id.clone()),
-            Some(rule.name.clone()),
-            Some(dest),
-        ),
+        Some((rule, dest)) => (Some(rule.id.clone()), Some(rule.name.clone()), Some(dest)),
         None => match mode {
             // Super Folder drop with no matching rule → its classified
             // category (pdf → Documents, unknown → Other).
-            PlanMode::SuperFolder => (None, None, Some(Destination::Category {
-                category: meta.category,
-            })),
+            PlanMode::SuperFolder => (
+                None,
+                None,
+                Some(Destination::Category {
+                    category: meta.category,
+                }),
+            ),
             // Watch folder with no matching rule → leave in place, flag it.
             PlanMode::WatchFolder => {
                 return skipped(&src, &src, "no matching rule".into(), meta.size_bytes);
@@ -217,7 +207,12 @@ fn plan_file(
             rule_name,
             size_bytes: meta.size_bytes,
         },
-        Err(e) => skipped(&src, &dst, format!("cannot check destination: {e}"), meta.size_bytes),
+        Err(e) => skipped(
+            &src,
+            &dst,
+            format!("cannot check destination: {e}"),
+            meta.size_bytes,
+        ),
     }
 }
 
@@ -233,9 +228,22 @@ fn compute_destination(dest: &Destination, src: &Path, settings: &Settings) -> O
             if path.is_absolute() {
                 Some(path.join(file_name))
             } else {
-                // Relative custom paths anchor at the Super Folder.
+                // Relative custom paths anchor at the Super Folder and must
+                // stay inside it: `..`, roots and drive prefixes are refused
+                // ("invalid destination path" in the preview).
+                let inside = path.components().all(|c| {
+                    matches!(
+                        c,
+                        std::path::Component::Normal(_) | std::path::Component::CurDir
+                    )
+                });
+                if !inside {
+                    return None;
+                }
                 let root = settings.super_folder.as_ref()?;
-                Some(root.join(path).join(file_name))
+                // Rebuild from components so `a/b` uses the native separator.
+                let rel: PathBuf = path.components().collect();
+                Some(root.join(rel).join(file_name))
             }
         }
     }
@@ -256,7 +264,7 @@ fn skipped(src: &Path, dst: &Path, reason: String, size: u64) -> PlannedOp {
 mod tests {
     use super::*;
     use crate::types::{
-        Category, Condition, ConditionField, CondValue, Destination, Op, Rule, RuleKind,
+        Category, CondValue, Condition, ConditionField, Destination, Op, Rule, RuleKind,
     };
 
     fn settings_with_super(dir: &Path) -> Settings {
@@ -290,15 +298,17 @@ mod tests {
         fs::write(&pdf, b"x").unwrap();
 
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[pdf.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&pdf),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
 
         assert_eq!(plan.len(), 1);
         let op = &plan[0];
         assert_eq!(op.src, pdf);
-        assert_eq!(
-            op.dst,
-            sf.join("Documents").join("invoice.pdf")
-        );
+        assert_eq!(op.dst, sf.join("Documents").join("invoice.pdf"));
         assert!(matches!(op.status, PlanStatus::Move { replace: false }));
     }
 
@@ -311,7 +321,12 @@ mod tests {
         fs::write(&odd, b"x").unwrap();
 
         let settings = Settings::default(); // no super folder configured
-        let plan = plan_inputs(&[odd.clone()], &[], &settings, PlanMode::WatchFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&odd),
+            &[],
+            &settings,
+            PlanMode::WatchFolder,
+        );
         assert!(matches!(
             &plan[0].status,
             PlanStatus::Skip { reason } if reason == "no matching rule"
@@ -346,14 +361,41 @@ mod tests {
                         value: CondValue::Text("invoice".into()),
                     },
                 ],
-                destination: Destination::Custom { path: invoices.clone() },
+                destination: Destination::Custom {
+                    path: invoices.clone(),
+                },
             },
             ext_rule("pdf", "pdf", Category::Documents),
         ];
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[pdf.clone()], &rules, &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&pdf),
+            &rules,
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert_eq!(plan[0].dst, invoices.join("july-invoice.pdf"));
         assert_eq!(plan[0].rule_id.as_deref(), Some("inv"));
+    }
+
+    #[test]
+    fn relative_destination_cannot_escape_super_folder() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sf = tmp.path().join("SF");
+        fs::create_dir_all(&sf).unwrap();
+        let src = tmp.path().join("a.pdf");
+        fs::write(&src, b"x").unwrap();
+        let mut rule = ext_rule("evil", "pdf", Category::Documents);
+        rule.destination = Destination::Custom {
+            path: PathBuf::from("../outside"),
+        };
+        let plan = plan_inputs(
+            &[src],
+            &[rule],
+            &settings_with_super(&sf),
+            PlanMode::SuperFolder,
+        );
+        assert!(matches!(&plan[0].status, PlanStatus::Skip { .. }));
     }
 
     #[test]
@@ -368,9 +410,17 @@ mod tests {
         fs::write(&incoming, b"new").unwrap();
 
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[incoming.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&incoming),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert_eq!(plan[0].dst.file_name().unwrap(), "report (1).pdf");
-        assert!(matches!(plan[0].status, PlanStatus::Move { replace: false }));
+        assert!(matches!(
+            plan[0].status,
+            PlanStatus::Move { replace: false }
+        ));
     }
 
     #[test]
@@ -387,7 +437,12 @@ mod tests {
             conflict_policy: ConflictPolicy::Skip,
             ..settings_with_super(&sf)
         };
-        let plan = plan_inputs(&[incoming.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&incoming),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert!(matches!(
             &plan[0].status,
             PlanStatus::Skip { reason } if reason == "already exists"
@@ -408,7 +463,12 @@ mod tests {
             conflict_policy: ConflictPolicy::Ask,
             ..settings_with_super(&sf)
         };
-        let plan = plan_inputs(&[incoming.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&incoming),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert!(matches!(plan[0].status, PlanStatus::NeedsDecision));
     }
 
@@ -423,9 +483,16 @@ mod tests {
         fs::write(pile.join("b.pdf"), b"x").unwrap();
 
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[pile.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&pile),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert_eq!(plan.len(), 2);
-        assert!(plan.iter().all(|op| op.src.parent() == Some(pile.as_path())));
+        assert!(plan
+            .iter()
+            .all(|op| op.src.parent() == Some(pile.as_path())));
         assert!(pile.exists(), "source directory must survive");
     }
 
@@ -450,7 +517,12 @@ mod tests {
         fs::write(&at_rest, b"x").unwrap();
 
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[at_rest.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&at_rest),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert!(matches!(plan[0].status, PlanStatus::Noop));
     }
 }

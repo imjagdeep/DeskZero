@@ -33,8 +33,8 @@ fn category_for_ext(ext: &str) -> Category {
         | "indd" => Category::Images,
 
         // --- Videos ---
-        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
-        | "3gp" | "ts" | "vob" | "rm" | "m2ts" => Category::Videos,
+        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg" | "3gp"
+        | "ts" | "vob" | "rm" | "m2ts" => Category::Videos,
 
         // --- Audio ---
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "oga" | "m4a" | "wma" | "opus" | "aiff"
@@ -118,7 +118,10 @@ mod tests {
 
     #[test]
     fn case_insensitive_and_path_tolerant() {
-        assert_eq!(classify("C:\\\\Photos\\\\Holiday\\\\PIC.PDF"), Category::Documents);
+        assert_eq!(
+            classify("C:\\\\Photos\\\\Holiday\\\\PIC.PDF"),
+            Category::Documents
+        );
         assert_eq!(classify("archive.ZIP"), Category::Archives);
     }
 }

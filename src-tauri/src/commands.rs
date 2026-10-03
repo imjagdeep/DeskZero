@@ -9,6 +9,7 @@ use sf_engine::{HistoryEntry, HistoryKind};
 use std::collections::HashSet;
 use std::path::PathBuf;
 use tauri::{AppHandle, Emitter, Manager, State};
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_opener::OpenerExt;
 
 type CmdResult<T> = Result<T, String>;
@@ -52,6 +53,7 @@ pub fn save_settings(
     if let Some(sf) = &settings.super_folder {
         std::fs::create_dir_all(sf).map_err(|e| format!("cannot create {}: {e}", sf.display()))?;
     }
+    apply_autostart(&app, settings.start_with_system)?;
     {
         let mut g = state.lock();
         g.cfg.settings = settings;
@@ -63,6 +65,21 @@ pub fn save_settings(
     organizer::restart_watcher(&app);
     let _ = app.emit("pending-changed", ());
     Ok(())
+}
+
+/// Register or remove the login item to match the setting.
+fn apply_autostart(app: &AppHandle, wanted: bool) -> CmdResult<()> {
+    let launcher = app.autolaunch();
+    let current = launcher.is_enabled().unwrap_or(false);
+    if wanted == current {
+        return Ok(());
+    }
+    let result = if wanted {
+        launcher.enable()
+    } else {
+        launcher.disable()
+    };
+    result.map_err(|e| format!("could not change start with system: {e}"))
 }
 
 /// Guards from the spec: absolute paths only, and the Super Folder and
@@ -91,16 +108,42 @@ fn validate_settings(s: &Settings) -> CmdResult<()> {
     Ok(())
 }
 
+/// A rule must have a name and conditions, and a relative destination must
+/// stay inside the Super Folder (no `..`, no drive or root prefix).
+fn validate_rule(r: &Rule) -> CmdResult<()> {
+    if r.name.trim().is_empty() {
+        return Err("every rule needs a name".into());
+    }
+    if r.conditions.is_empty() {
+        return Err(format!("rule \"{}\" has no conditions", r.name));
+    }
+    if let sf_engine::types::Destination::Custom { path } = &r.destination {
+        if path.as_os_str().is_empty() {
+            return Err(format!("rule \"{}\" has no destination folder", r.name));
+        }
+        if !path.is_absolute() {
+            let escapes = path.components().any(|c| {
+                !matches!(
+                    c,
+                    std::path::Component::Normal(_) | std::path::Component::CurDir
+                )
+            });
+            if escapes {
+                return Err(format!(
+                    "rule \"{}\": a relative destination must stay inside the Super Folder",
+                    r.name
+                ));
+            }
+        }
+    }
+    Ok(())
+}
+
 #[tauri::command]
 pub fn save_rules(app: AppHandle, state: State<'_, AppState>, rules: Vec<Rule>) -> CmdResult<()> {
     let mut seen = HashSet::new();
     for r in &rules {
-        if r.name.trim().is_empty() {
-            return Err("every rule needs a name".into());
-        }
-        if r.conditions.is_empty() {
-            return Err(format!("rule \"{}\" has no conditions", r.name));
-        }
+        validate_rule(r)?;
         if !seen.insert(r.id.clone()) {
             return Err(format!("duplicate rule id {}", r.id));
         }
@@ -352,11 +395,42 @@ pub async fn rename_preview(folder: PathBuf, template: String) -> CmdResult<Vec<
 }
 
 #[tauri::command]
-pub async fn rename_apply(folder: PathBuf, template: String) -> CmdResult<RunSummary> {
-    blocking(move || {
+pub async fn rename_apply(
+    app: AppHandle,
+    folder: PathBuf,
+    template: String,
+) -> CmdResult<RunSummary> {
+    let app2 = app.clone();
+    let summary = blocking(move || {
         let ops = sf_engine::renamer::plan_rename(&folder_files(&folder)?, &template)
             .map_err(|e| e.to_string())?;
         let (n, failed) = sf_engine::renamer::apply_rename(&ops);
+
+        // Record the renames as a normal batch so History can undo them.
+        let failed_srcs: HashSet<&PathBuf> = failed.iter().map(|(p, _)| p).collect();
+        let items: Vec<sf_engine::history::HistoryItem> = ops
+            .iter()
+            .filter(|o| !o.skipped && o.src != o.dst && !failed_srcs.contains(&o.src))
+            .map(|o| sf_engine::history::HistoryItem {
+                src: o.src.clone(),
+                dst: o.dst.clone(),
+            })
+            .collect();
+        if !items.is_empty() {
+            let state = app2.state::<AppState>();
+            let mut g = state.lock();
+            g.counter += 1;
+            let entry = HistoryEntry {
+                id: sf_engine::history::new_op_id(g.counter),
+                ts: chrono::Utc::now(),
+                kind: HistoryKind::Move,
+                items,
+                quarantined: Vec::new(),
+                failed: Vec::new(),
+            };
+            sf_engine::history::append(&g.cfg.history_path(), &entry)
+                .map_err(|e| format!("renamed, but could not record history: {e}"))?;
+        }
         Ok(RunSummary {
             moved: n,
             failed: failed
@@ -366,7 +440,78 @@ pub async fn rename_apply(folder: PathBuf, template: String) -> CmdResult<RunSum
             skipped: ops.iter().filter(|o| o.skipped).count(),
         })
     })
-    .await
+    .await?;
+    let _ = app.emit("history-changed", ());
+    Ok(summary)
+}
+
+// ---------- rules import / export ----------
+
+#[derive(Serialize, serde::Deserialize)]
+struct RulesExport {
+    #[serde(default = "rules_export_version")]
+    version: u32,
+    rules: Vec<Rule>,
+}
+
+fn rules_export_version() -> u32 {
+    1
+}
+
+#[tauri::command]
+pub fn export_rules(state: State<'_, AppState>, path: PathBuf) -> CmdResult<usize> {
+    let rules = state.lock().cfg.rules.clone();
+    let n = rules.len();
+    sf_engine::config::write_atomic(&path, &RulesExport { version: 1, rules })
+        .map_err(|e| format!("could not write {}: {e}", path.display()))?;
+    Ok(n)
+}
+
+/// Import a rules.json. `replace` swaps the whole list; otherwise the
+/// imported rules are appended (ids that already exist get a new one).
+#[tauri::command]
+pub fn import_rules(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    path: PathBuf,
+    replace: bool,
+) -> CmdResult<usize> {
+    let meta =
+        std::fs::metadata(&path).map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+    if meta.len() > 2_000_000 {
+        return Err("that file is too big to be a rules file".into());
+    }
+    let text = std::fs::read_to_string(&path)
+        .map_err(|e| format!("cannot read {}: {e}", path.display()))?;
+    let parsed: RulesExport =
+        serde_json::from_str(&text).map_err(|e| format!("not a Super Folder rules file: {e}"))?;
+    let mut incoming = parsed.rules;
+    for r in &incoming {
+        validate_rule(r)?;
+    }
+    let n = incoming.len();
+    let mut g = state.lock();
+    let mut rules = if replace {
+        Vec::new()
+    } else {
+        g.cfg.rules.clone()
+    };
+    let mut ids: HashSet<String> = rules.iter().map(|r| r.id.clone()).collect();
+    let stamp = chrono::Utc::now().timestamp_millis();
+    for (i, r) in incoming.iter_mut().enumerate() {
+        if !ids.insert(r.id.clone()) {
+            r.id = format!("rule_{stamp}_{i}");
+            ids.insert(r.id.clone());
+        }
+    }
+    rules.extend(incoming);
+    g.cfg.rules = rules;
+    g.cfg
+        .save_rules()
+        .map_err(|e| format!("could not save rules: {e}"))?;
+    drop(g);
+    let _ = app.emit("pending-changed", ());
+    Ok(n)
 }
 
 // ---------- shell ----------

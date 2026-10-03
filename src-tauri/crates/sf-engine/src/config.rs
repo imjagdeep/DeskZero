@@ -51,7 +51,12 @@ impl Config {
     }
 
     pub fn save_rules(&self) -> io::Result<()> {
-        write_atomic(&self.data_dir.join(RULES_FILE), &RulesFile { rules: self.rules.clone() })
+        write_atomic(
+            &self.data_dir.join(RULES_FILE),
+            &RulesFile {
+                rules: self.rules.clone(),
+            },
+        )
     }
 
     pub fn history_path(&self) -> PathBuf {
@@ -60,15 +65,9 @@ impl Config {
 }
 
 /// rules.json envelope: `{ "version": 1, "rules": [...] }`.
-#[derive(Debug, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, serde::Serialize, serde::Deserialize, Default)]
 struct RulesFile {
     rules: Vec<Rule>,
-}
-
-impl Default for RulesFile {
-    fn default() -> Self {
-        RulesFile { rules: Vec::new() }
-    }
 }
 
 fn read_json<T: serde::de::DeserializeOwned + Default>(path: &Path) -> Option<T> {
@@ -108,7 +107,7 @@ pub fn write_atomic(path: &Path, value: &impl serde::Serialize) -> io::Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Condition, ConditionField, CondValue, Destination, Op, RuleKind};
+    use crate::types::{CondValue, Condition, ConditionField, Destination, Op, RuleKind};
 
     #[test]
     fn load_missing_files_gives_defaults() {

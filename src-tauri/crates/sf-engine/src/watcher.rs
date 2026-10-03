@@ -54,7 +54,7 @@ impl WatchHandle {
 }
 
 fn to_io<E: std::fmt::Display>(e: E) -> io::Error {
-    io::Error::new(io::ErrorKind::Other, e.to_string())
+    io::Error::other(e.to_string())
 }
 /// Start watching `folders`. Mature, stable files arrive on the returned
 /// receiver in small batches. Symlinked folders are skipped (they can
@@ -129,11 +129,7 @@ struct Sample {
 /// Keep re-sampling each pending file until its (size, mtime) pair holds
 /// still for STABLE_AFTER, then emit it. Files unstable for MAX_WAIT are
 /// dropped with a warning (actively-written logs don't belong to us).
-fn stable_checker_loop(
-    rx: Receiver<PathBuf>,
-    out: Sender<Vec<PathBuf>>,
-    stop: Arc<AtomicBool>,
-) {
+fn stable_checker_loop(rx: Receiver<PathBuf>, out: Sender<Vec<PathBuf>>, stop: Arc<AtomicBool>) {
     let mut pending: HashMap<PathBuf, Sample> = HashMap::new();
 
     while !stop.load(Ordering::SeqCst) {
@@ -246,7 +242,7 @@ mod tests {
         let watch = tmp.path().join("watch");
         fs::create_dir_all(&watch).unwrap();
 
-        let (mut handle, rx) = start(&[watch.clone()]).unwrap();
+        let (mut handle, rx) = start(std::slice::from_ref(&watch)).unwrap();
 
         // Burst 1: create then extend shortly after (simulates a download).
         fs::write(watch.join("file.txt"), b"chunk1").unwrap();
@@ -259,10 +255,7 @@ mod tests {
         assert!(batch.iter().any(|p| p.ends_with("file.txt")));
 
         // The file we saw must be the COMPLETE one.
-        assert_eq!(
-            fs::read(watch.join("file.txt")).unwrap(),
-            b"chunk1+chunk2"
-        );
+        assert_eq!(fs::read(watch.join("file.txt")).unwrap(), b"chunk1+chunk2");
 
         handle.stop();
     }

@@ -46,7 +46,9 @@ fn plan_execute_undo_full_cycle() {
     let s = settings(&sf);
     let plan = plan_inputs(&inputs, &[], &s, PlanMode::SuperFolder);
     assert_eq!(plan.len(), 8);
-    assert!(plan.iter().all(|op| matches!(op.status, PlanStatus::Move { replace: false })));
+    assert!(plan
+        .iter()
+        .all(|op| matches!(op.status, PlanStatus::Move { replace: false })));
 
     let mut counter = 0u64;
     let result = mover::execute(
@@ -99,11 +101,23 @@ fn conflict_rename_keeps_both_files() {
     fs::write(&incoming, b"NEW").unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&[incoming.clone()], &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(
+        std::slice::from_ref(&incoming),
+        &[],
+        &s,
+        PlanMode::SuperFolder,
+    );
     assert_eq!(plan[0].dst.file_name().unwrap(), "report (1).pdf");
 
     let mut counter = 0u64;
-    let result = mover::execute(&plan, &root.join("h.jsonl"), &root.join("q"), &mut counter, AskResolution::Skip).unwrap();
+    let result = mover::execute(
+        &plan,
+        &root.join("h.jsonl"),
+        &root.join("q"),
+        &mut counter,
+        AskResolution::Skip,
+    )
+    .unwrap();
     assert!(result.entry.failed.is_empty());
     assert_eq!(fs::read(docs.join("report.pdf")).unwrap(), b"OLD");
     assert_eq!(fs::read(docs.join("report (1).pdf")).unwrap(), b"NEW");
@@ -126,9 +140,19 @@ fn failed_move_is_recorded_and_batch_completes() {
     fs::remove_file(&ghost).unwrap(); // simulate vanished file after planning
 
     let mut counter = 0u64;
-    let result = mover::execute(&plan, &root.join("h.jsonl"), &root.join("q"), &mut counter, AskResolution::Skip).unwrap();
+    let result = mover::execute(
+        &plan,
+        &root.join("h.jsonl"),
+        &root.join("q"),
+        &mut counter,
+        AskResolution::Skip,
+    )
+    .unwrap();
 
-    assert!(sf.join("Images").join("ok.jpg").exists(), "good move must land");
+    assert!(
+        sf.join("Images").join("ok.jpg").exists(),
+        "good move must land"
+    );
     assert_eq!(result.entry.items.len(), 1);
     assert_eq!(result.entry.failed.len(), 1);
     assert!(result.entry.failed[0].src.ends_with("ghost.png"));
@@ -144,9 +168,16 @@ fn unicode_names_round_trip() {
     fs::write(&file, b"data").unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&[file.clone()], &[], &s, PlanMode::SuperFolder);
+    let plan = plan_inputs(std::slice::from_ref(&file), &[], &s, PlanMode::SuperFolder);
     let mut counter = 0u64;
-    let result = mover::execute(&plan, &root.join("h.jsonl"), &root.join("q"), &mut counter, AskResolution::Skip).unwrap();
+    let result = mover::execute(
+        &plan,
+        &root.join("h.jsonl"),
+        &root.join("q"),
+        &mut counter,
+        AskResolution::Skip,
+    )
+    .unwrap();
     assert!(result.entry.failed.is_empty());
     assert!(sf.join("Documents").join("facture été 2026.pdf").exists());
 
@@ -169,7 +200,14 @@ fn symlinks_move_as_links_not_targets() {
     let s = settings(&sf);
     let plan = plan_inputs(&[link.clone()], &[], &s, PlanMode::SuperFolder);
     let mut counter = 0u64;
-    mover::execute(&plan, &root.join("h.jsonl"), &root.join("q"), &mut counter, AskResolution::Skip).unwrap();
+    mover::execute(
+        &plan,
+        &root.join("h.jsonl"),
+        &root.join("q"),
+        &mut counter,
+        AskResolution::Skip,
+    )
+    .unwrap();
 
     let moved = sf.join("Documents").join("link.txt");
     assert!(moved.exists());

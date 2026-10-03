@@ -44,29 +44,27 @@ pub fn execute(
 
     for op in plan {
         match &op.status {
-            PlanStatus::Move { replace } => {
-                match move_one(op, *replace, quarantine_dir) {
-                    Ok(stash) => {
-                        items.push(HistoryItem {
-                            src: op.src.clone(),
-                            dst: op.dst.clone(),
-                        });
-                        if let Some(stash) = stash {
-                            quarantined.push(HistoryItem {
-                                src: op.dst.clone(),
-                                dst: stash,
-                            });
-                        }
-                    }
-                    Err(e) => {
-                        tracing::warn!("move failed {}: {e}", op.src.display());
-                        failed.push(FailedItem {
-                            src: op.src.clone(),
-                            error: e.to_string(),
+            PlanStatus::Move { replace } => match move_one(op, *replace, quarantine_dir) {
+                Ok(stash) => {
+                    items.push(HistoryItem {
+                        src: op.src.clone(),
+                        dst: op.dst.clone(),
+                    });
+                    if let Some(stash) = stash {
+                        quarantined.push(HistoryItem {
+                            src: op.dst.clone(),
+                            dst: stash,
                         });
                     }
                 }
-            }
+                Err(e) => {
+                    tracing::warn!("move failed {}: {e}", op.src.display());
+                    failed.push(FailedItem {
+                        src: op.src.clone(),
+                        error: e.to_string(),
+                    });
+                }
+            },
             PlanStatus::Noop => {}
             PlanStatus::Skip { .. } => skipped.push(op.clone()),
             PlanStatus::NeedsDecision => match ask {
@@ -210,10 +208,8 @@ fn is_transient(e: &io::Error) -> bool {
                 const ERROR_ACCESS_DENIED: i32 = 5;
                 const ERROR_CLOUD_FILE_NOT_SUPPORTED: i32 = 395;
                 if let Some(code) = e.raw_os_error() {
-                    return matches!(
-                        code,
-                        ERROR_SHARING_VIOLATION | ERROR_ACCESS_DENIED
-                    ) || code == ERROR_CLOUD_FILE_NOT_SUPPORTED;
+                    return matches!(code, ERROR_SHARING_VIOLATION | ERROR_ACCESS_DENIED)
+                        || code == ERROR_CLOUD_FILE_NOT_SUPPORTED;
                 }
             }
             false
@@ -244,7 +240,7 @@ fn is_cross_volume(e: &io::Error) -> bool {
     #[cfg(windows)]
     {
         // ERROR_NOT_SAME_DEVICE = 17
-        return e.raw_os_error() == Some(17);
+        e.raw_os_error() == Some(17)
     }
     #[cfg(not(any(unix, windows)))]
     {
@@ -292,7 +288,12 @@ mod tests {
         fs::write(&pdf, b"data").unwrap();
 
         let settings = settings_with_super(&sf);
-        let plan = plan_inputs(&[pdf.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&pdf),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         let mut counter = 0u64;
         let result = execute(
             &plan,
@@ -329,7 +330,14 @@ mod tests {
         let plan = plan_inputs(&inputs, &[], &settings, PlanMode::SuperFolder);
         let mut counter = 0u64;
         let hist = tmp.path().join("history.jsonl");
-        let result = execute(&plan, &hist, &tmp.path().join("quarantine"), &mut counter, AskResolution::Skip).unwrap();
+        let result = execute(
+            &plan,
+            &hist,
+            &tmp.path().join("quarantine"),
+            &mut counter,
+            AskResolution::Skip,
+        )
+        .unwrap();
 
         let undo_entry = undo(&result.entry, &hist, &mut counter).unwrap();
         assert!(pdf.exists());
@@ -354,12 +362,24 @@ mod tests {
             conflict_policy: crate::types::ConflictPolicy::Replace,
             ..settings_with_super(&sf)
         };
-        let plan = plan_inputs(&[incoming.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&incoming),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         assert!(matches!(plan[0].status, PlanStatus::Move { replace: true }));
 
         let mut counter = 0u64;
         let quarantine = tmp.path().join("quarantine");
-        let result = execute(&plan, &tmp.path().join("history.jsonl"), &quarantine, &mut counter, AskResolution::Skip).unwrap();
+        let result = execute(
+            &plan,
+            &tmp.path().join("history.jsonl"),
+            &quarantine,
+            &mut counter,
+            AskResolution::Skip,
+        )
+        .unwrap();
 
         assert_eq!(fs::read(&existing).unwrap(), b"NEW");
         assert!(!incoming.exists());
@@ -384,9 +404,21 @@ mod tests {
             conflict_policy: crate::types::ConflictPolicy::Ask,
             ..settings_with_super(&sf)
         };
-        let plan = plan_inputs(&[incoming.clone()], &[], &settings, PlanMode::SuperFolder);
+        let plan = plan_inputs(
+            std::slice::from_ref(&incoming),
+            &[],
+            &settings,
+            PlanMode::SuperFolder,
+        );
         let mut counter = 0u64;
-        let result = execute(&plan, &tmp.path().join("history.jsonl"), &tmp.path().join("q"), &mut counter, AskResolution::Skip).unwrap();
+        let result = execute(
+            &plan,
+            &tmp.path().join("history.jsonl"),
+            &tmp.path().join("q"),
+            &mut counter,
+            AskResolution::Skip,
+        )
+        .unwrap();
 
         assert!(incoming.exists(), "asked file must stay put");
         assert_eq!(result.skipped.len(), 1);

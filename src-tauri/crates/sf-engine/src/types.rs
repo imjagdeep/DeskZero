@@ -192,8 +192,10 @@ fn default_true() -> bool {
 /// What to do when the destination path already exists.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum ConflictPolicy {
     /// Default: pick a free name `file (1).pdf`, `file (2).pdf`, … Never overwrite.
+    #[default]
     Rename,
     /// Leave the file where it is and flag it as needing attention.
     Skip,
@@ -309,26 +311,16 @@ pub struct WatchFolder {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
+#[derive(Default)]
 pub enum Theme {
     Light,
     Dark,
+    #[default]
     System,
 }
 
 fn default_keep_days() -> u32 {
     90
-}
-
-impl Default for Theme {
-    fn default() -> Self {
-        Theme::System
-    }
-}
-
-impl Default for ConflictPolicy {
-    fn default() -> Self {
-        ConflictPolicy::Rename
-    }
 }
 
 impl Default for Settings {
@@ -396,7 +388,9 @@ mod tests {
         assert_eq!(rule.kind, RuleKind::Custom);
         assert!(matches!(
             &rule.destination,
-            Destination::Category { category: Category::Documents }
+            Destination::Category {
+                category: Category::Documents
+            }
         ));
     }
 }

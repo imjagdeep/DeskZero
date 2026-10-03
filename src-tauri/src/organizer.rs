@@ -9,6 +9,7 @@ use sf_engine::types::{PlanMode, PlanStatus, PlannedOp, Settings};
 use sf_engine::HistoryKind;
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Emitter, Manager};
+use tauri_plugin_notification::NotificationExt;
 
 #[derive(Debug, Clone, Serialize)]
 pub struct Status {
@@ -92,11 +93,15 @@ fn in_super_folder(path: &Path, settings: &Settings) -> bool {
 /// depending on the settings.
 fn handle_batch(app: &AppHandle, batch: Vec<PathBuf>) {
     let state = app.state::<AppState>();
+    let mut moved = 0usize;
+    let mut queued = 0usize;
+    let notify;
     {
         let mut g = state.lock();
         if g.cfg.settings.paused {
             return;
         }
+        notify = g.cfg.settings.notifications;
         let (sup, wat): (Vec<PathBuf>, Vec<PathBuf>) = batch
             .into_iter()
             .partition(|p| in_super_folder(p, &g.cfg.settings));
@@ -111,7 +116,7 @@ fn handle_batch(app: &AppHandle, batch: Vec<PathBuf>) {
                 PlanMode::WatchFolder => !g.cfg.settings.confirm_before_move,
             };
             if auto {
-                run_plan(&mut g, &plan);
+                moved += run_plan(&mut g, &plan).moved;
             } else {
                 for op in plan.iter().filter(|op| op.is_executable()) {
                     let list = match mode {
@@ -120,15 +125,50 @@ fn handle_batch(app: &AppHandle, batch: Vec<PathBuf>) {
                     };
                     if !list.contains(&op.src) {
                         list.push(op.src.clone());
+                        queued += 1;
                     }
                 }
                 note_skips(&mut g, &plan);
             }
         }
     }
+    if notify {
+        if moved > 0 {
+            send_notification(app, &format!("Organized {moved} file{}", plural(moved)));
+        }
+        if queued > 0 {
+            send_notification(
+                app,
+                &format!(
+                    "{queued} new file{} waiting to be organized",
+                    plural(queued)
+                ),
+            );
+        }
+    }
     let _ = app.emit("pending-changed", ());
     let _ = app.emit("history-changed", ());
     emit_status(app);
+}
+
+fn plural(n: usize) -> &'static str {
+    if n == 1 {
+        ""
+    } else {
+        "s"
+    }
+}
+
+fn send_notification(app: &AppHandle, body: &str) {
+    if let Err(e) = app
+        .notification()
+        .builder()
+        .title("Super Folder")
+        .body(body)
+        .show()
+    {
+        tracing::warn!("notification failed: {e}");
+    }
 }
 
 /// Skipped files (no rule, conflict under Skip) need the user's attention.

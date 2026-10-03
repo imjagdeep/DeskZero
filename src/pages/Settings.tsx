@@ -25,6 +25,22 @@ export function Settings() {
       <PageHeader title="Settings" />
 
       <section className="card">
+        <h2>General</h2>
+        <label className="check">
+          <input type="checkbox" checked={s.start_with_system} onChange={(e) => void save({ start_with_system: e.target.checked })} />
+          <span>Start with system<span className="muted small"> Launch when you sign in, so folders stay organized.</span></span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={s.start_minimized} onChange={(e) => void save({ start_minimized: e.target.checked })} />
+          <span>Start minimized<span className="muted small"> Open quietly in the tray instead of showing the window.</span></span>
+        </label>
+        <label className="check">
+          <input type="checkbox" checked={s.notifications} onChange={(e) => void save({ notifications: e.target.checked })} />
+          <span>Notifications<span className="muted small"> Tell me when files are organized or waiting.</span></span>
+        </label>
+      </section>
+
+      <section className="card">
         <h2>Super Folder</h2>
         <FolderField label="Location" value={s.super_folder ?? ""} onChange={(p) => void save({ super_folder: p }).then((ok) => ok && toast("Super Folder changed; files already sorted stay where they are"))} />
         <label className="check">

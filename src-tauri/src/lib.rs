@@ -11,6 +11,15 @@ use tauri::{Manager, WindowEvent};
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        // Must be first: a second launch just focuses the running window.
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            tray::show_main(app);
+        }))
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
@@ -71,6 +80,8 @@ pub fn run() {
             commands::search_files,
             commands::rename_preview,
             commands::rename_apply,
+            commands::export_rules,
+            commands::import_rules,
             commands::open_folder,
             commands::reveal_file,
         ])

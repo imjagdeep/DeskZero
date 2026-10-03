@@ -1,3 +1,4 @@
+import { ask, open, save as saveDialog } from "@tauri-apps/plugin-dialog";
 import { useState } from "react";
 import { PageHeader, pickFolder } from "../components/Common";
 import { api } from "../lib/api";
@@ -77,6 +78,37 @@ export function Rules() {
     }
   }
 
+  async function exportFile() {
+    try {
+      const path = await saveDialog({ title: "Export rules", defaultPath: "rules.json", filters: [{ name: "Rules", extensions: ["json"] }] });
+      if (!path) return;
+      const n = await api.exportRules(path);
+      toast(`Exported ${n} rule${n === 1 ? "" : "s"}`);
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
+  async function importFile() {
+    try {
+      const path = await open({ title: "Import rules", multiple: false, filters: [{ name: "Rules", extensions: ["json"] }] });
+      if (typeof path !== "string") return;
+      const replace =
+        rules.length > 0 &&
+        (await ask("Replace your current rules with the imported ones?\n\nChoose No to add them after your current rules.", {
+          title: "Import rules",
+          kind: "info",
+          okLabel: "Replace",
+          cancelLabel: "No, add them",
+        }));
+      const n = await api.importRules(path, replace);
+      await refreshConfig();
+      toast(`Imported ${n} rule${n === 1 ? "" : "s"}`);
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
   function move(rule: Rule, dir: -1 | 1) {
     const same = rules.filter((r) => r.kind === rule.kind);
     const pos = same.indexOf(rule);
@@ -92,6 +124,8 @@ export function Rules() {
   return (
     <div className="page">
       <PageHeader title="Rules">
+        <button onClick={importFile}>Import…</button>
+        <button onClick={exportFile} disabled={rules.length === 0}>Export…</button>
         <button className="primary" onClick={() => setEditing(newRule("custom"))}>Add rule</button>
       </PageHeader>
       <p className="muted">Rules are checked in this order; the first match wins. Files no rule matches go to their file-type folder.</p>

@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#3b82f6"/>
+      <stop offset="1" stop-color="#1d4ed8"/>
+    </linearGradient>
+    <linearGradient id="back" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fcd34d"/>
+      <stop offset="1" stop-color="#f59e0b"/>
+    </linearGradient>
+    <linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fde68a"/>
+      <stop offset="1" stop-color="#fbbf24"/>
+    </linearGradient>
+  </defs>
+  <!-- rounded tile -->
+  <rect x="64" y="64" width="896" height="896" rx="200" fill="url(#bg)"/>
+  <!-- folder back with tab -->
+  <path d="M212 330 a40 40 0 0 1 40-40 h170 a40 40 0 0 1 30 14 l40 46 h280 a40 40 0 0 1 40 40 v360 a40 40 0 0 1-40 40 H252 a40 40 0 0 1-40-40 Z" fill="url(#back)"/>
+  <!-- sorted sheets peeking out -->
+  <rect x="300" y="380" width="200" height="150" rx="18" fill="#ffffff"/>
+  <rect x="524" y="380" width="200" height="150" rx="18" fill="#dbeafe"/>
+  <!-- folder front -->
+  <path d="M196 470 a40 40 0 0 1 40-40 h552 a40 40 0 0 1 40 44 l-30 296 a40 40 0 0 1-40 36 H266 a40 40 0 0 1-40-36 Z" fill="url(#front)"/>
+  <!-- sparkle: "organized" -->
+  <path d="M512 520 l28 70 70 28 -70 28 -28 70 -28-70 -70-28 70-28 Z" fill="#1d4ed8"/>
+  <circle cx="644" cy="560" r="16" fill="#1d4ed8"/>
+  <circle cx="384" cy="700" r="12" fill="#1d4ed8"/>
+</svg>

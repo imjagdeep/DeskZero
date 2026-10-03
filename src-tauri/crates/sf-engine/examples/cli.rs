@@ -19,7 +19,9 @@ use std::path::PathBuf;
 fn main() {
     let args: Vec<String> = std::env::args().skip(1).collect();
     if args.is_empty() {
-        eprintln!("usage: sf-cli <plan|organize|undo|history|watch|dupes|search|rename|demo> [args...]");
+        eprintln!(
+            "usage: sf-cli <plan|organize|undo|history|watch|dupes|search|rename|demo> [args...]"
+        );
         std::process::exit(2);
     }
     let result = match args[0].as_str() {

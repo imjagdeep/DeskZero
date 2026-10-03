@@ -50,7 +50,7 @@ export function History() {
             <section className={e.undone ? "card dim" : "card"}>
               <div className="card-head">
                 <span>
-                  <strong>{e.kind === "undo" ? "Undo" : "Organized"}</strong>{" "}
+                  <strong>{e.kind === "undo" ? "Undo" : "Moved"}</strong>{" "}
                   <span className="muted small">{time} · {e.items.length} file(s){e.failed.length ? ` · ${e.failed.length} failed` : ""}</span>
                 </span>
                 {e.kind === "move" && e.items.length > 0 && (

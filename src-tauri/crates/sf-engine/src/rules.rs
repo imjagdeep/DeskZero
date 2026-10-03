@@ -6,9 +6,7 @@
 //!   3. extension rules (in user order)
 //!   4. caller's fallback (default category or "leave in place")
 
-use crate::types::{
-    Condition, ConditionField, Destination, FileMeta, Op, Rule, RuleKind,
-};
+use crate::types::{Condition, ConditionField, Destination, FileMeta, Op, Rule, RuleKind};
 use chrono::{DateTime, TimeZone, Utc};
 
 /// Does one condition hold for this file?
@@ -57,7 +55,9 @@ pub fn condition_matches(cond: &Condition, meta: &FileMeta) -> bool {
             }
         }
         ConditionField::SizeMb => {
-            let Some(n) = cond.value.as_num() else { return false };
+            let Some(n) = cond.value.as_num() else {
+                return false;
+            };
             let size_mb = meta.size_bytes as f64 / 1_000_000.0;
             match cond.op {
                 Op::Is => (size_mb - n).abs() < f64::EPSILON,
@@ -69,8 +69,12 @@ pub fn condition_matches(cond: &Condition, meta: &FileMeta) -> bool {
             }
         }
         ConditionField::Created | ConditionField::Modified => {
-            let Some(text) = cond.value.as_text() else { return false };
-            let Some(ts) = parse_rule_date(text) else { return false };
+            let Some(text) = cond.value.as_text() else {
+                return false;
+            };
+            let Some(ts) = parse_rule_date(text) else {
+                return false;
+            };
             let file_ts = if cond.field == ConditionField::Created {
                 meta.created
             } else {
@@ -222,16 +226,22 @@ mod tests {
     #[test]
     fn first_rule_in_tier_wins_and_order_matters() {
         let rules = vec![
-            rule("first", RuleKind::Custom, vec![cond(
-                ConditionField::Type,
-                Op::Is,
-                CondValue::Text("video".into()),
-            )], cat(Category::Videos)),
-            rule("second", RuleKind::Custom, vec![cond(
-                ConditionField::SizeMb,
-                Op::Gt,
-                CondValue::Num(0.0),
-            )], cat(Category::Archives)),
+            rule(
+                "first",
+                RuleKind::Custom,
+                vec![cond(
+                    ConditionField::Type,
+                    Op::Is,
+                    CondValue::Text("video".into()),
+                )],
+                cat(Category::Videos),
+            ),
+            rule(
+                "second",
+                RuleKind::Custom,
+                vec![cond(ConditionField::SizeMb, Op::Gt, CondValue::Num(0.0))],
+                cat(Category::Archives),
+            ),
         ];
         let m = meta("movie.mp4", "mp4", Category::Videos, 5_000_000);
         let (winner, _) = resolve_destination(&rules, &m).unwrap();
@@ -243,11 +253,16 @@ mod tests {
 
     #[test]
     fn disabled_rules_are_skipped() {
-        let mut r = rule("off", RuleKind::Extension, vec![cond(
-            ConditionField::Extension,
-            Op::Is,
-            CondValue::Text("pdf".into()),
-        )], cat(Category::Documents));
+        let mut r = rule(
+            "off",
+            RuleKind::Extension,
+            vec![cond(
+                ConditionField::Extension,
+                Op::Is,
+                CondValue::Text("pdf".into()),
+            )],
+            cat(Category::Documents),
+        );
         r.enabled = false;
         let m = meta("a.pdf", "pdf", Category::Documents, 1);
         assert!(resolve(&[r], &m).is_none());
@@ -262,10 +277,23 @@ mod tests {
 
     #[test]
     fn and_semantics_require_all_conditions() {
-        let r = rule("and", RuleKind::Custom, vec![
-            cond(ConditionField::Extension, Op::Is, CondValue::Text("pdf".into())),
-            cond(ConditionField::Filename, Op::Contains, CondValue::Text("invoice".into())),
-        ], cat(Category::Documents));
+        let r = rule(
+            "and",
+            RuleKind::Custom,
+            vec![
+                cond(
+                    ConditionField::Extension,
+                    Op::Is,
+                    CondValue::Text("pdf".into()),
+                ),
+                cond(
+                    ConditionField::Filename,
+                    Op::Contains,
+                    CondValue::Text("invoice".into()),
+                ),
+            ],
+            cat(Category::Documents),
+        );
         let yes = meta("july-invoice.pdf", "pdf", Category::Documents, 1);
         let no = meta("report.pdf", "pdf", Category::Documents, 1);
         assert!(rule_matches(&r, &yes));
@@ -275,11 +303,12 @@ mod tests {
     #[test]
     fn size_mb_is_decimal() {
         let big = meta("big.bin", "bin", Category::Other, 2_000_000);
-        let r = rule("sz", RuleKind::Custom, vec![cond(
-            ConditionField::SizeMb,
-            Op::Gt,
-            CondValue::Num(1.0),
-        )], cat(Category::Other));
+        let r = rule(
+            "sz",
+            RuleKind::Custom,
+            vec![cond(ConditionField::SizeMb, Op::Gt, CondValue::Num(1.0))],
+            cat(Category::Other),
+        );
         assert!(rule_matches(&r, &big));
         let small = meta("small.bin", "bin", Category::Other, 500_000);
         assert!(!rule_matches(&r, &small));
@@ -287,28 +316,43 @@ mod tests {
 
     #[test]
     fn date_rules_compare_days() {
-        let r = rule("recent", RuleKind::Custom, vec![cond(
-            ConditionField::Modified,
-            Op::Gt,
-            CondValue::Text("2026-09-10".into()),
-        )], cat(Category::Documents));
+        let r = rule(
+            "recent",
+            RuleKind::Custom,
+            vec![cond(
+                ConditionField::Modified,
+                Op::Gt,
+                CondValue::Text("2026-09-10".into()),
+            )],
+            cat(Category::Documents),
+        );
         let m = meta("a.pdf", "pdf", Category::Documents, 1);
         assert!(rule_matches(&r, &m)); // modified 2026-09-15
-        let same_day = rule("same", RuleKind::Custom, vec![cond(
-            ConditionField::Modified,
-            Op::Is,
-            CondValue::Text("2026-09-15".into()),
-        )], cat(Category::Documents));
+        let same_day = rule(
+            "same",
+            RuleKind::Custom,
+            vec![cond(
+                ConditionField::Modified,
+                Op::Is,
+                CondValue::Text("2026-09-15".into()),
+            )],
+            cat(Category::Documents),
+        );
         assert!(rule_matches(&same_day, &m));
     }
 
     #[test]
     fn extension_list_tolerates_leading_dots_and_case() {
-        let r = rule("docs", RuleKind::Extension, vec![cond(
-            ConditionField::Extension,
-            Op::In,
-            CondValue::List(vec![".PDF".into(), "Docx".into()]),
-        )], cat(Category::Documents));
+        let r = rule(
+            "docs",
+            RuleKind::Extension,
+            vec![cond(
+                ConditionField::Extension,
+                Op::In,
+                CondValue::List(vec![".PDF".into(), "Docx".into()]),
+            )],
+            cat(Category::Documents),
+        );
         let m = meta("X.PDF", "pdf", Category::Documents, 1);
         assert!(rule_matches(&r, &m));
     }

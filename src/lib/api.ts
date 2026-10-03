@@ -34,6 +34,8 @@ export const api = {
     invoke<RenameRow[]>("rename_preview", { folder, template }),
   renameApply: (folder: string, template: string) =>
     invoke<RunSummary>("rename_apply", { folder, template }),
+  exportRules: (path: string) => invoke<number>("export_rules", { path }),
+  importRules: (path: string, replace: boolean) => invoke<number>("import_rules", { path, replace }),
   openFolder: (path: string) => invoke<void>("open_folder", { path }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
 };

@@ -151,7 +151,7 @@ export function Rename() {
     const n = rows?.filter((r) => !r.skipped && r.src !== r.dst).length ?? 0;
     if (!(await ask(`Rename ${n} file(s) in ${folder}?
 
-Renames can't be undone from History yet.`, { title: "Rename files", kind: "warning" }))) return;
+You can undo this from History.`, { title: "Rename files", kind: "warning" }))) return;
     setBusy(true);
     try {
       const r = await api.renameApply(folder, template);
@@ -180,7 +180,7 @@ Renames can't be undone from History yet.`, { title: "Rename files", kind: "warn
           <button key={t} className="chip mono" onClick={() => { setTemplate(template + t); setRows(null); }}>{t}</button>
         ))}
       </div>
-      <p className="muted small">Only the files directly in this folder are renamed. Always check the preview first.</p>
+      <p className="muted small">Only the files directly in this folder are renamed. Check the preview first; History can undo it.</p>
       {rows && (
         <table className="table">
           <thead><tr><th>Now</th><th>Becomes</th></tr></thead>

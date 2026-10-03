@@ -28,13 +28,40 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "dmg", "appimage", "deb"],
+    "targets": [
+      "nsis",
+      "dmg",
+      "appimage",
+      "deb"
+    ],
     "icon": [
       "icons/32x32.png",
       "icons/128x128.png",
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "publisher": "Jagdeep Sandhu",
+    "copyright": "Copyright (c) 2026 Jagdeep Sandhu. MIT License.",
+    "category": "Utility",
+    "shortDescription": "Offline file organizer",
+    "longDescription": "Super Folder keeps your folders organized with simple rules. Offline, private, no account. Preview before moving, undo any batch.",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false
+      },
+      "webviewInstallMode": {
+        "type": "downloadBootstrapper"
+      }
+    },
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "linux": {
+      "deb": {
+        "section": "utils"
+      }
+    }
   }
 }
