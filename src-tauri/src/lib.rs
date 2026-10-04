@@ -155,6 +155,7 @@ pub fn run() {
             commands::launch,
             commands::platform,
             commands::take_startup_paths,
+            commands::open_link,
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeskZero");

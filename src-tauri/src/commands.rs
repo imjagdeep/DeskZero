@@ -676,3 +676,18 @@ pub fn reveal_file(app: AppHandle, path: PathBuf) -> CmdResult<()> {
         .reveal_item_in_dir(&path)
         .map_err(|e| e.to_string())
 }
+
+/// Open one of a few fixed web pages (developer profile, sister tools).
+/// Ids only, so the page can't be made to open arbitrary URLs.
+#[tauri::command]
+pub fn open_link(app: AppHandle, id: String) -> CmdResult<()> {
+    let url = match id.as_str() {
+        "developer" => "https://github.com/imjagdeep",
+        "deskzero" => "https://github.com/imjagdeep/deskzero",
+        "deskmedic" => "https://github.com/imjagdeep/DeskMedic",
+        _ => return Err(format!("unknown link {id}")),
+    };
+    app.opener()
+        .open_url(url, None::<&str>)
+        .map_err(|e| e.to_string())
+}

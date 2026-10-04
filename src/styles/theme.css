@@ -414,3 +414,10 @@ kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 2px 6px; bor
 .about-title { font-weight: 600; }
 .about-title .muted { font-weight: 400; margin-left: 6px; }
 .release-notes { white-space: pre-wrap; font: inherit; font-size: 12px; background: var(--window); border-radius: 8px; padding: 10px; max-height: 160px; overflow: auto; }
+
+/* sister tools in About */
+.more-tools { border-top: 0.5px solid var(--sep); margin-top: 10px; padding-top: 10px; display: flex; flex-direction: column; gap: 6px; }
+.tool-link { height: auto; display: flex; flex-direction: column; align-items: flex-start; gap: 1px; padding: 8px 12px; text-align: left; white-space: normal; }
+.tool-link strong { color: var(--accent); }
+.made-by { margin-top: 2px; }
+.made-by .link { padding: 0; font-size: inherit; }

@@ -52,6 +52,7 @@ export const api = {
   launch: (path: string) => invoke<void>("launch", { path }),
   platform: () => invoke<string>("platform"),
   takeStartupPaths: () => invoke<string[]>("take_startup_paths"),
+  openLink: (id: "developer" | "deskzero" | "deskmedic") => invoke<void>("open_link", { id }),
   openFolder: (path: string) => invoke<void>("open_folder", { path }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
 };

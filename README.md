@@ -200,6 +200,12 @@ cargo run -p sf-engine --example cli -- search ~/Documents "*.pdf size:>1mb"
 
 Set `DESKZERO_DATA_DIR` to use a separate data folder while testing.
 
+## More tools
+
+- **[DeskMedic](https://github.com/imjagdeep/DeskMedic)**: a portable Windows toolkit for helpdesk technicians. Disk map, safe cleanup, Disk Management fixes and one-click repairs.
+
+Made by Jagdeep Sandhu · [github.com/imjagdeep](https://github.com/imjagdeep)
+
 ## License
 
 [MIT](LICENSE)

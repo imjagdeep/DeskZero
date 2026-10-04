@@ -245,6 +245,17 @@ function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: 
         signature-checked before installing. Settings, rules and history are stored in{" "}
         <button className="link" onClick={() => api.openFolder(dataDir).catch(toastError)}>{dataDir}</button>.
       </p>
+      <div className="more-tools">
+        <div className="muted small">More free tools by the same developer</div>
+        <button className="tool-link" onClick={() => api.openLink("deskmedic").catch(toastError)}>
+          <strong>DeskMedic</strong>
+          <span className="muted small">Windows helpdesk toolkit: disk map, safe cleanup, disk fixes and one-click repairs.</span>
+        </button>
+        <div className="muted small made-by">
+          Made by Jagdeep Sandhu ·{" "}
+          <button className="link" onClick={() => api.openLink("developer").catch(toastError)}>github.com/imjagdeep</button>
+        </div>
+      </div>
     </section>
   );
 }
