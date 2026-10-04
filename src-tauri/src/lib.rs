@@ -70,9 +70,9 @@ pub fn run() {
         .setup(|app| {
             // Same data dir as the CLI harness, so both see one history.
             // DESKZERO_DATA_DIR points it elsewhere (testing, portable use);
-            // the old DESKZERO_DATA_DIR name still works.
+            // the old SUPER_FOLDER_DATA_DIR name still works.
             let data_dir = std::env::var_os("DESKZERO_DATA_DIR")
-                .or_else(|| std::env::var_os("DESKZERO_DATA_DIR"))
+                .or_else(|| std::env::var_os("SUPER_FOLDER_DATA_DIR"))
                 .map(std::path::PathBuf::from)
                 .or_else(sf_engine::Config::default_dir)
                 .ok_or("no per-user config folder")?;

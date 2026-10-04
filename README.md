@@ -1,6 +1,9 @@
+<img src="src/assets/logo.png" alt="DeskZero icon" width="96" align="left">
+
 # DeskZero
 
 A tiny offline desktop app that keeps your folders organized.
+<br clear="left">
 
 Put files into one folder — your **DeskZero** — and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
