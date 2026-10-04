@@ -304,6 +304,10 @@ pub struct Settings {
     /// Watch folders: show a confirmation before moving.
     #[serde(default = "default_true")]
     pub confirm_before_move: bool,
+    /// Watch folders: when no rule matches, sort by the built-in file type
+    /// (png → Images, exe → Installers, …) instead of leaving the file.
+    #[serde(default)]
+    pub watch_type_fallback: bool,
     #[serde(default)]
     pub conflict_policy: ConflictPolicy,
     /// History entries older than this many days are compacted away on startup.
@@ -364,6 +368,7 @@ impl Default for Settings {
             watch_folders: Vec::new(),
             auto_organize: false,
             confirm_before_move: true,
+            watch_type_fallback: false,
             conflict_policy: ConflictPolicy::Rename,
             keep_history_days: 90,
             theme: Theme::System,

@@ -155,9 +155,20 @@ fn plan_file(meta: &FileMeta, rules: &[Rule], settings: &Settings, mode: PlanMod
                     category: meta.category,
                 }),
             ),
-            // Watch folder with no matching rule → leave in place, flag it.
+            // Watch folder with no matching rule → sort by its classified
+            // type when the fallback is on, else leave in place and flag it.
             PlanMode::WatchFolder => {
-                return skipped(&src, &src, "no matching rule".into(), meta.size_bytes);
+                if settings.watch_type_fallback {
+                    (
+                        None,
+                        None,
+                        Some(Destination::Category {
+                            category: meta.category,
+                        }),
+                    )
+                } else {
+                    return skipped(&src, &src, "no matching rule".into(), meta.size_bytes);
+                }
             }
         },
     };
@@ -405,6 +416,31 @@ mod tests {
             PlanStatus::Skip { reason } if reason == "no matching rule"
         ));
         assert_eq!(plan[0].dst, odd);
+    }
+
+    #[test]
+    fn watch_type_fallback_files_by_category_into_deskzero() {
+        let tmp = tempfile::tempdir().unwrap();
+        let sf = tmp.path().join("DeskZero");
+        let watch = tmp.path().join("Downloads");
+        fs::create_dir_all(&watch).unwrap();
+        let png = watch.join("screenshot.png");
+        fs::write(&png, b"x").unwrap();
+
+        let settings = Settings {
+            organize_root: Some(sf.clone()),
+            watch_type_fallback: true,
+            ..Settings::default()
+        };
+        let plan = plan_inputs(
+            std::slice::from_ref(&png),
+            &[], // no rules at all
+            &settings,
+            PlanMode::WatchFolder,
+        );
+        assert_eq!(plan.len(), 1);
+        assert_eq!(plan[0].dst, sf.join("Images").join("screenshot.png"));
+        assert!(matches!(plan[0].status, PlanStatus::Move { replace: false }));
     }
 
     #[test]

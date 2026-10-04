@@ -44,6 +44,7 @@ export interface Settings {
   watch_folders: WatchFolder[];
   auto_organize: boolean;
   confirm_before_move: boolean;
+  watch_type_fallback: boolean;
   conflict_policy: ConflictPolicy;
   keep_history_days: number;
   theme: Theme;

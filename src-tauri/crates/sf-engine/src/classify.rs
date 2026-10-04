@@ -28,21 +28,23 @@ pub fn extension_of(file_name: &str) -> String {
 fn category_for_ext(ext: &str) -> Category {
     match ext {
         // --- Images ---
-        "jpg" | "jpeg" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tif" | "tiff"
-        | "heic" | "heif" | "avif" | "raw" | "cr2" | "nef" | "arw" | "dng" | "psd" | "ai"
-        | "indd" => Category::Images,
+        "jpg" | "jpeg" | "jfif" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tif"
+        | "tiff" | "heic" | "heif" | "avif" | "raw" | "cr2" | "nef" | "arw" | "dng"
+        | "psd" | "ai" | "eps" | "indd" => Category::Images,
 
         // --- Videos ---
-        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg" | "3gp"
-        | "ts" | "vob" | "rm" | "m2ts" => Category::Videos,
+        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
+        | "3gp" | "ts" | "vob" | "rm" | "m2ts" | "mts" | "asf" | "divx" => Category::Videos,
 
         // --- Audio ---
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "oga" | "m4a" | "wma" | "opus" | "aiff"
-        | "aif" | "amr" | "mid" | "midi" => Category::Audio,
+        | "aif" | "amr" | "mid" | "midi" | "ac3" | "aax" | "dsf" | "weba" => Category::Audio,
 
         // --- Documents ---
         "pdf" | "doc" | "docx" | "txt" | "md" | "rtf" | "odt" | "pages" | "epub" | "mobi"
-        | "azw" | "azw3" | "tex" | "log" | "rst" => Category::Documents,
+        | "azw" | "azw3" | "tex" | "log" | "rst" | "djvu" | "xps" | "oxps" | "chm" => {
+            Category::Documents
+        }
 
         // --- Spreadsheets ---
         "xls" | "xlsx" | "xlsm" | "csv" | "tsv" | "ods" | "numbers" => Category::Spreadsheets,
@@ -51,20 +53,22 @@ fn category_for_ext(ext: &str) -> Category {
         "ppt" | "pptx" | "pps" | "ppsx" | "key" | "odp" => Category::Presentations,
 
         // --- Archives ---
-        "zip" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "7z" | "rar" | "zst" | "lz4" | "cab"
-        | "z" | "lz" | "lzma" => Category::Archives,
+        "zip" | "zipx" | "tar" | "gz" | "tgz" | "bz2" | "xz" | "7z" | "rar" | "zst" | "lz4"
+        | "cab" | "z" | "lz" | "lzma" | "ace" | "cpio" => Category::Archives,
 
-        // --- Applications (scripts / portable binaries, not installers) ---
+        // --- Applications (scripts / shortcuts / portable binaries, not installers) ---
         "bat" | "cmd" | "ps1" | "sh" | "bash" | "zsh" | "py" | "rb" | "pl" | "lua" | "jar"
-        | "appimage" | "desktop" | "com" | "scr" => Category::Applications,
-
-        // --- Installers / packages ---
-        "exe" | "msi" | "msix" | "appx" | "pkg" | "deb" | "rpm" | "apk" | "ipa" => {
-            Category::Installers
+        | "appimage" | "desktop" | "com" | "scr" | "lnk" | "url" | "webloc" => {
+            Category::Applications
         }
 
+        // --- Installers / packages ---
+        "exe" | "msi" | "msix" | "msixbundle" | "appx" | "appxbundle" | "msu" | "msp"
+        | "pkg" | "deb" | "rpm" | "apk" | "ipa" | "run" => Category::Installers,
+
         // --- Disk images ---
-        "iso" | "img" | "dmg" | "vhd" | "vhdx" | "vdi" | "vmdk" | "wim" => Category::DiskImages,
+        "iso" | "img" | "dmg" | "vhd" | "vhdx" | "vdi" | "vmdk" | "wim" | "qcow2" | "ova"
+        | "ovf" => Category::DiskImages,
 
         // --- Code / config ---
         "rs" | "go" | "c" | "h" | "cpp" | "cc" | "cxx" | "hpp" | "hh" | "cs" | "java" | "kt"
@@ -97,6 +101,20 @@ mod tests {
         assert_eq!(classify("mac.dmg"), Category::DiskImages);
         assert_eq!(classify("main.rs"), Category::Code);
         assert_eq!(classify("app.json"), Category::Code);
+    }
+
+    #[test]
+    fn less_common_downloads_are_covered() {
+        assert_eq!(classify("photo.jfif"), Category::Images);
+        assert_eq!(classify("clip.mts"), Category::Videos);
+        assert_eq!(classify("audiobook.aax"), Category::Audio);
+        assert_eq!(classify("manual.chm"), Category::Documents);
+        assert_eq!(classify("backup.zipx"), Category::Archives);
+        assert_eq!(classify("shortcut.lnk"), Category::Applications);
+        assert_eq!(classify("bookmark.url"), Category::Applications);
+        assert_eq!(classify("driver.msu"), Category::Installers);
+        assert_eq!(classify("linux-installer.run"), Category::Installers);
+        assert_eq!(classify("vm.qcow2"), Category::DiskImages);
     }
 
     #[test]

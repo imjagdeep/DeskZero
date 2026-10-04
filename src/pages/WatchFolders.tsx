@@ -33,7 +33,11 @@ export function WatchFolders() {
         <button className="primary" onClick={add}>Add folder…</button>
       </PageHeader>
       <p className="muted">
-        New files that appear in these folders are sorted by your rules, including files that arrive while DeskZero is closed. Files no rule matches stay where they are. Use “Sort what's here…” for files that were already there.
+        New files that appear in these folders are sorted by your rules, including files that arrive while DeskZero is closed.
+        {s.watch_type_fallback
+          ? " Files no rule matches are filed by type into your DeskZero (png → Images, exe → Installers)."
+          : " Files no rule matches stay where they are."}
+        {" Use “Sort what's here…” for files that were already there."}
         {s.confirm_before_move ? " You confirm each batch on the Home page." : " Moves happen automatically."}
       </p>
       {s.watch_folders.length === 0 && (

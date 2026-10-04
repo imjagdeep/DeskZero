@@ -77,6 +77,10 @@ export function Settings() {
           <input type="checkbox" checked={s.confirm_before_move} onChange={(e) => void save({ confirm_before_move: e.target.checked })} />
           <span>Confirm before organizing watch folders<span className="muted small"> Off = new files in watch folders are moved as soon as they finish downloading.</span></span>
         </label>
+        <label className="check">
+          <input type="checkbox" checked={s.watch_type_fallback} onChange={(e) => void save({ watch_type_fallback: e.target.checked })} />
+          <span>Sort watch-folder files by type when no rule matches<span className="muted small"> Moves them to your DeskZero by file type (png → Images, exe → Installers, zip → Archives). Off = they stay where they are.</span></span>
+        </label>
       </section>
 
       <SearchSection settings={s} save={save} />
