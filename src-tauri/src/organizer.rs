@@ -312,7 +312,12 @@ pub fn scan_organize_root(g: &mut Inner) {
         .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
         .map(|e| e.path())
         .collect();
-    let plan = sf_engine::plan_inputs(&loose, &g.cfg.rules, &g.cfg.settings, PlanMode::OrganizeRoot);
+    let plan = sf_engine::plan_inputs(
+        &loose,
+        &g.cfg.rules,
+        &g.cfg.settings,
+        PlanMode::OrganizeRoot,
+    );
     for op in plan.iter().filter(|op| op.is_executable()) {
         if !g.pending_super.contains(&op.src) {
             g.pending_super.push(op.src.clone());

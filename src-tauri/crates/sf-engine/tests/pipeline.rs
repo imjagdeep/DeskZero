@@ -135,7 +135,12 @@ fn failed_move_is_recorded_and_batch_completes() {
     fs::write(&ghost, b"png").unwrap();
 
     let s = settings(&sf);
-    let plan = plan_inputs(&[ok.clone(), ghost.clone()], &[], &s, PlanMode::OrganizeRoot);
+    let plan = plan_inputs(
+        &[ok.clone(), ghost.clone()],
+        &[],
+        &s,
+        PlanMode::OrganizeRoot,
+    );
     assert_eq!(plan.len(), 2);
     fs::remove_file(&ghost).unwrap(); // simulate vanished file after planning
 
