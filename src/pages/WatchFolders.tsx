@@ -1,4 +1,5 @@
-import { PageHeader, pickFolder } from "../components/Common";
+import { EmptyState, PageHeader, pickFolder } from "../components/Common";
+import { WatchIcon } from "../components/Icons";
 import { api } from "../lib/api";
 import { refreshConfig, refreshStatus, toastError, useConfig, useStatus } from "../lib/store";
 import type { Settings } from "../lib/types";
@@ -36,7 +37,9 @@ export function WatchFolders() {
         {s.confirm_before_move ? " You confirm each batch on the Home page." : " Moves happen automatically."}
       </p>
       {s.watch_folders.length === 0 && (
-        <div className="empty">No watch folders yet. Downloads and Desktop are good places to start.</div>
+        <EmptyState icon={<WatchIcon size={30} />} title="No watch folders yet">
+          Downloads and Desktop are good places to start.
+        </EmptyState>
       )}
       {s.watch_folders.map((w, i) => (
         <div className="list-row card-row" key={w.path}>

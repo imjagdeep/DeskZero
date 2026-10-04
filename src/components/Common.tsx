@@ -65,3 +65,22 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
     </header>
   );
 }
+
+/** A friendlier empty state: icon, short title, one line of help. */
+export function EmptyState({
+  icon,
+  title,
+  children,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  children?: React.ReactNode;
+}) {
+  return (
+    <div className="empty empty-big">
+      <span className="empty-icon">{icon}</span>
+      <div className="empty-title">{title}</div>
+      {children && <div>{children}</div>}
+    </div>
+  );
+}

@@ -1,11 +1,12 @@
 // Search, Duplicates and Rename: read-only tools (rename applies only on request).
 
 import { ask } from "@tauri-apps/plugin-dialog";
-import { useState } from "react";
-import { FolderField, PageHeader, RevealButton } from "../components/Common";
+import { useState, useSyncExternalStore } from "react";
+import { EmptyState, FolderField, PageHeader, RevealButton } from "../components/Common";
+import { CheckCircleIcon } from "../components/Icons";
 import { api } from "../lib/api";
 import { categoryLabel, dateTime, fileName, humanSize, parentDir } from "../lib/format";
-import { openPreview, toast, toastError, useConfig } from "../lib/store";
+import { createStore, openPreview, toast, toastError, useConfig } from "../lib/store";
 import type { DupGroup, FileInfo, RenameRow } from "../lib/types";
 
 function useStartFolder(): [string, (p: string) => void] {
@@ -14,23 +15,29 @@ function useStartFolder(): [string, (p: string) => void] {
   return [folder ?? cfg?.settings.organize_root ?? "", setFolder];
 }
 
+// Results live outside the pages so switching pages (even mid-search) keeps them.
+const searchStore = createStore<{ query: string; hits: FileInfo[] | null; busy: boolean }>({
+  query: "",
+  hits: null,
+  busy: false,
+});
+const dupStore = createStore<{ groups: DupGroup[] | null; busy: boolean }>({ groups: null, busy: false });
+
 const EXAMPLES = ["invoice", "*.pdf", "large files", "type:video", "size:>10mb", "modified:2026-09", "folder:scans"];
 
 export function Search() {
   const [folder, setFolder] = useStartFolder();
-  const [query, setQuery] = useState("");
-  const [hits, setHits] = useState<FileInfo[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { query, hits, busy } = useSyncExternalStore(searchStore.subscribe, searchStore.get);
+  const setQuery = (q: string) => searchStore.set({ ...searchStore.get(), query: q });
 
   async function run(q = query) {
     if (!folder || !q.trim()) return;
-    setBusy(true);
+    searchStore.set({ ...searchStore.get(), busy: true });
     try {
-      setHits(await api.searchFiles(folder, q));
+      searchStore.set({ ...searchStore.get(), hits: await api.searchFiles(folder, q), busy: false });
     } catch (e) {
+      searchStore.set({ ...searchStore.get(), busy: false });
       toastError(e);
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -56,7 +63,7 @@ export function Search() {
       {hits && (
         <>
           <p className="muted">{hits.length === 2000 ? "First 2000 results" : `${hits.length} result${hits.length === 1 ? "" : "s"}`}</p>
-          <table className="table">
+          <table className="table fade-in">
             <thead>
               <tr><th>Name</th><th>Folder</th><th>Type</th><th className="num">Size</th><th>Modified</th><th /></tr>
             </thead>
@@ -81,17 +88,15 @@ export function Search() {
 
 export function Duplicates() {
   const [folder, setFolder] = useStartFolder();
-  const [groups, setGroups] = useState<DupGroup[] | null>(null);
-  const [busy, setBusy] = useState(false);
+  const { groups, busy } = useSyncExternalStore(dupStore.subscribe, dupStore.get);
 
   async function scan() {
-    setBusy(true);
+    dupStore.set({ groups: dupStore.get().groups, busy: true });
     try {
-      setGroups(await api.findDuplicates(folder));
+      dupStore.set({ groups: await api.findDuplicates(folder), busy: false });
     } catch (e) {
+      dupStore.set({ groups: dupStore.get().groups, busy: false });
       toastError(e);
-    } finally {
-      setBusy(false);
     }
   }
 
@@ -124,7 +129,11 @@ export function Duplicates() {
         Files count as duplicates when their size and SHA-256 hash match. Nothing is ever deleted: moving extras aside
         keeps the oldest copy and puts the others in a Duplicates folder, where you can review them.
       </p>
-      {groups && groups.length === 0 && <div className="empty">No duplicates found.</div>}
+      {groups && groups.length === 0 && (
+        <EmptyState icon={<CheckCircleIcon size={30} />} title="No duplicates found">
+          Every file in this folder is unique.
+        </EmptyState>
+      )}
       {groups && groups.length > 0 && (
         <div className="row">
           <span className="grow">

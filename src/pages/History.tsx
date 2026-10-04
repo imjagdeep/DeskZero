@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
-import { PageHeader } from "../components/Common";
+import { EmptyState, PageHeader } from "../components/Common";
+import { HistoryIcon } from "../components/Icons";
 import { api } from "../lib/api";
 import { dayLabel, fileName, parentDir, relTo } from "../lib/format";
 import { toast, toastError, useConfig } from "../lib/store";
@@ -38,7 +39,11 @@ export function History() {
   return (
     <div className="page">
       <PageHeader title="History & Undo" />
-      {entries.length === 0 && <div className="empty">Nothing organized yet.</div>}
+      {entries.length === 0 && (
+        <EmptyState icon={<HistoryIcon size={30} />} title="Nothing organized yet">
+          Every batch you organize shows up here, and any of them can be undone.
+        </EmptyState>
+      )}
       {entries.map((e) => {
         const day = dayLabel(e.ts);
         const header = day !== lastDay ? <h3 className="day">{day}</h3> : null;

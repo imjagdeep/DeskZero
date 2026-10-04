@@ -421,3 +421,39 @@ kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 2px 6px; bor
 .tool-link strong { color: var(--accent); }
 .made-by { margin-top: 2px; }
 .made-by .link { padding: 0; font-size: inherit; }
+
+/* ---------- polish: motion and details ---------- */
+@keyframes fade-up { from { opacity: 0; transform: translateY(6px); } }
+@keyframes grow { from { transform: scaleX(0); } }
+
+.page { animation: fade-up 0.22s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.fade-in { animation: fade-up 0.25s ease-out; }
+.card, .card-row, .stat { animation: fade-up 0.28s ease-out both; }
+.stats .stat:nth-child(2) { animation-delay: 40ms; }
+.stats .stat:nth-child(3) { animation-delay: 80ms; }
+.page > .card:nth-of-type(2) { animation-delay: 30ms; }
+.page > .card:nth-of-type(3) { animation-delay: 60ms; }
+.page > .card:nth-of-type(4) { animation-delay: 90ms; }
+
+button { transition: background 0.12s, filter 0.12s, transform 0.08s, box-shadow 0.12s; }
+button:active:not(:disabled) { transform: scale(0.97); }
+button.link:active:not(:disabled), .nav-item:active:not(:disabled) { transform: none; }
+.nav-item { transition: background 0.15s, color 0.15s; }
+
+.stat { transition: transform 0.15s, box-shadow 0.15s; }
+.stat:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+.dropzone-icon { transition: transform 0.2s; }
+.dropzone.active .dropzone-icon { transform: translateY(2px) scale(1.06); }
+
+/* Bars grow into place instead of appearing at full width. */
+.usage-bar span { transform-origin: left; animation: grow 0.5s cubic-bezier(0.2, 0.8, 0.2, 1); }
+
+/* Empty states */
+.empty-big { display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 40px 24px; }
+.empty-icon { color: var(--accent); opacity: 0.85; margin-bottom: 4px; display: inline-flex; }
+.empty-title { font-size: 15px; font-weight: 600; color: var(--text); }
+
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
