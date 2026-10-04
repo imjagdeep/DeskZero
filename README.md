@@ -1,4 +1,4 @@
-<img src="src/assets/logo.png" alt="DeskZero icon" width="96" align="left">
+<img src="src/assets/logo.png" alt="DeskZero icon" width="70" align="left">
 
 # DeskZero
 
