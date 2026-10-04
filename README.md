@@ -19,6 +19,10 @@ Put files into one folder — your **DeskZero** — and they get sorted into `Im
 |---|---|---|
 | ![Preview](docs/screenshot-preview.png) | ![Rules](docs/screenshot-rules.png) | ![Settings](docs/screenshot-settings.png) |
 
+**Universal search:** press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere to find files, folders and apps as you type.
+
+![Universal search bar](docs/screenshot-search.png)
+
 ## Features
 
 | | |

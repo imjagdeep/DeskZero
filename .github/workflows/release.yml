@@ -87,12 +87,44 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+          # Parallel jobs editing one latest.json raced (v0.3.2 lost Linux and
+          # macOS). The publish job writes it once from the .sig files instead.
+          uploadUpdaterJson: false
 
   publish:
     needs: [create-release, build]
     runs-on: ubuntu-latest
     steps:
-      - env:
+      - name: Write latest.json (the in-app updater feed) and publish
+        env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           ID: ${{ needs.create-release.outputs.release_id }}
-        run: gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/$ID" -F draft=false
+          TAG: ${{ github.ref_name }}
+        shell: python
+        run: |
+          import json, os, subprocess, datetime
+          repo, tag, rid = os.environ["GITHUB_REPOSITORY"], os.environ["TAG"], os.environ["ID"]
+          v = tag.lstrip("v")
+          subprocess.run(["gh", "release", "download", tag, "-R", repo, "-p", "*.sig", "-D", "sigs"], check=True)
+          sig = lambda f: open(os.path.join("sigs", f + ".sig"), encoding="utf-8").read()
+          base = f"https://github.com/{repo}/releases/latest/download/"
+          files = {
+              "darwin-aarch64": "DeskZero_aarch64.app.tar.gz",
+              "darwin-aarch64-app": "DeskZero_aarch64.app.tar.gz",
+              "darwin-x86_64": "DeskZero_x64.app.tar.gz",
+              "darwin-x86_64-app": "DeskZero_x64.app.tar.gz",
+              "linux-x86_64": f"DeskZero_{v}_amd64.AppImage",
+              "linux-x86_64-appimage": f"DeskZero_{v}_amd64.AppImage",
+              "linux-x86_64-deb": f"DeskZero_{v}_amd64.deb",
+              "windows-x86_64": f"DeskZero_{v}_x64-setup.exe",
+              "windows-x86_64-nsis": f"DeskZero_{v}_x64-setup.exe",
+          }
+          feed = {
+              "version": v,
+              "notes": "",
+              "pub_date": datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000Z"),
+              "platforms": {k: {"signature": sig(f), "url": base + f} for k, f in files.items()},
+          }
+          json.dump(feed, open("latest.json", "w"), indent=2)
+          subprocess.run(["gh", "release", "upload", tag, "-R", repo, "latest.json", "--clobber"], check=True)
+          subprocess.run(["gh", "api", "-X", "PATCH", f"repos/{repo}/releases/{rid}", "-F", "draft=false"], check=True)
