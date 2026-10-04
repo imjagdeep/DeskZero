@@ -194,6 +194,12 @@ pub fn plan_paths(state: State<'_, AppState>, paths: Vec<PathBuf>) -> CmdResult<
     ))
 }
 
+/// Preview every loose file already in a watch folder. No moves.
+#[tauri::command]
+pub fn plan_watch_folder(state: State<'_, AppState>, path: PathBuf) -> CmdResult<Vec<PlannedOp>> {
+    organizer::plan_watch_folder(&state.lock(), &path)
+}
+
 #[tauri::command]
 pub fn pending_plan(state: State<'_, AppState>) -> Vec<PlannedOp> {
     organizer::pending_plan(&mut state.lock())

@@ -279,6 +279,64 @@ pub fn run_plan(g: &mut Inner, plan: &[PlannedOp]) -> RunSummary {
     }
 }
 
+/// Files that arrived in watch folders while DeskZero was closed (restart,
+/// update, reboot) are handled like new arrivals: queued for confirmation,
+/// or organized right away when confirmation is off.
+pub fn catch_up(app: &AppHandle, since: std::time::SystemTime) {
+    let folders: Vec<PathBuf> = {
+        let state = app.state::<AppState>();
+        let g = state.lock();
+        g.cfg
+            .settings
+            .watch_folders
+            .iter()
+            .filter(|w| w.enabled && w.path.is_dir())
+            .map(|w| w.path.clone())
+            .collect()
+    };
+    let files: Vec<PathBuf> = folders
+        .iter()
+        .flat_map(|f| sf_engine::alive::arrived_since(f, since))
+        .collect();
+    if !files.is_empty() {
+        tracing::info!(
+            "{} file(s) arrived in watch folders while closed",
+            files.len()
+        );
+        handle_batch(app, files);
+    }
+}
+
+/// Plan every loose file already sitting in one of the watch folders (the
+/// "Sort what's here" button). Only configured watch folders are accepted.
+pub fn plan_watch_folder(g: &Inner, folder: &Path) -> Result<Vec<PlannedOp>, String> {
+    if !g
+        .cfg
+        .settings
+        .watch_folders
+        .iter()
+        .any(|w| w.path == folder)
+    {
+        return Err(format!(
+            "{} is not one of your watch folders",
+            folder.display()
+        ));
+    }
+    let rd =
+        std::fs::read_dir(folder).map_err(|e| format!("cannot read {}: {e}", folder.display()))?;
+    let files: Vec<PathBuf> = rd
+        .flatten()
+        .filter(|e| e.file_type().map(|t| t.is_file()).unwrap_or(false))
+        .map(|e| e.path())
+        .collect();
+    Ok(sf_engine::plan_inputs(
+        &files,
+        &g.cfg.rules,
+        &g.cfg.settings,
+        PlanMode::WatchFolder,
+    ))
+}
+
 /// Plan everything that is waiting, without moving anything.
 pub fn pending_plan(g: &mut Inner) -> Vec<PlannedOp> {
     g.pending_super.retain(|p| p.exists());

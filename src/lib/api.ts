@@ -25,6 +25,7 @@ export const api = {
   saveRules: (rules: Rule[]) => invoke<void>("save_rules", { rules }),
   getStatus: () => invoke<Status>("get_status"),
   planPaths: (paths: string[]) => invoke<PlannedOp[]>("plan_paths", { paths }),
+  planWatchFolder: (path: string) => invoke<PlannedOp[]>("plan_watch_folder", { path }),
   pendingPlan: () => invoke<PlannedOp[]>("pending_plan"),
   executePlan: (plan: PlannedOp[]) => invoke<RunSummary>("execute_plan", { plan }),
   setPaused: (paused: boolean) => invoke<void>("set_paused", { paused }),

@@ -111,6 +111,19 @@ pub fn run() {
             tray::build(app.handle())?;
             organizer::restart_watcher(app.handle());
 
+            // Catch up on files that reached a watch folder while DeskZero
+            // was closed, then keep a heartbeat for the next start.
+            if let Some(since) = sf_engine::alive::read(&data_dir) {
+                organizer::catch_up(app.handle(), since);
+            }
+            let heartbeat_dir = data_dir.clone();
+            std::thread::spawn(move || loop {
+                if let Err(e) = sf_engine::alive::write(&heartbeat_dir) {
+                    tracing::warn!("could not write the heartbeat: {e}");
+                }
+                std::thread::sleep(std::time::Duration::from_secs(60));
+            });
+
             let has_paths = !app.state::<AppState>().lock().startup_paths.is_empty();
             if !start_minimized || has_paths {
                 tray::show_main(app.handle());
@@ -156,6 +169,7 @@ pub fn run() {
             commands::platform,
             commands::take_startup_paths,
             commands::open_link,
+            commands::plan_watch_folder,
         ])
         .run(tauri::generate_context!())
         .expect("error while running DeskZero");

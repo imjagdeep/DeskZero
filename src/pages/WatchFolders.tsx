@@ -1,7 +1,7 @@
 import { EmptyState, PageHeader, pickFolder } from "../components/Common";
 import { WatchIcon } from "../components/Icons";
 import { api } from "../lib/api";
-import { refreshConfig, refreshStatus, toastError, useConfig, useStatus } from "../lib/store";
+import { openPreview, refreshConfig, refreshStatus, toast, toastError, useConfig, useStatus } from "../lib/store";
 import type { Settings } from "../lib/types";
 
 export function WatchFolders() {
@@ -33,7 +33,7 @@ export function WatchFolders() {
         <button className="primary" onClick={add}>Add folder…</button>
       </PageHeader>
       <p className="muted">
-        New files that appear in these folders are sorted by your rules. Files no rule matches stay where they are.
+        New files that appear in these folders are sorted by your rules, including files that arrive while DeskZero is closed. Files no rule matches stay where they are. Use “Sort what's here…” for files that were already there.
         {s.confirm_before_move ? " You confirm each batch on the Home page." : " Moves happen automatically."}
       </p>
       {s.watch_folders.length === 0 && (
@@ -57,6 +57,21 @@ export function WatchFolders() {
           <span className="muted small">
             {w.enabled && status?.watching.includes(w.path) ? "● watching" : w.enabled ? "not running" : "off"}
           </span>
+          <button
+            className="link"
+            title="Preview every file already in this folder; nothing moves until you confirm"
+            onClick={async () => {
+              try {
+                const plan = await api.planWatchFolder(w.path);
+                if (plan.length === 0) toast("Nothing to sort here: no loose files.");
+                else openPreview(plan);
+              } catch (e) {
+                toastError(e);
+              }
+            }}
+          >
+            Sort what's here…
+          </button>
           <button className="link" onClick={() => api.openFolder(w.path).catch(toastError)}>Open</button>
           <button
             className="link danger"

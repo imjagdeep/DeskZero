@@ -3,6 +3,7 @@
 //! Everything testable lives here. The Tauri command layer (later) is a thin
 //! adapter over this crate.
 
+pub mod alive;
 pub mod classify;
 pub mod config;
 pub mod duplicates;
