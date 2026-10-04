@@ -46,16 +46,16 @@ Download the latest installer from [Releases](../../releases):
 
 | Platform | File | Notes |
 |---|---|---|
-| Windows 10/11 | `Super.Folder_x.y.z_x64-setup.exe` | Installs for the current user, no admin needed. |
-| macOS (Apple Silicon) | `Super.Folder_x.y.z_aarch64.dmg` | |
-| macOS (Intel) | `Super.Folder_x.y.z_x64.dmg` | |
+| Windows 10/11 | `DeskZero_x.y.z_x64-setup.exe` | Installs for the current user, no admin needed. |
+| macOS (Apple Silicon) | `DeskZero_x.y.z_aarch64.dmg` | |
+| macOS (Intel) | `DeskZero_x.y.z_x64.dmg` | |
 | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu/Debian) | |
 
 **The builds are not code-signed yet**, so your system will warn the first time:
 
 - **Windows:** SmartScreen says "Windows protected your PC". Click **More info → Run anyway**.
 - **macOS:** right-click the app in Applications → **Open** → **Open**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once.
-- **Linux AppImage:** `chmod +x Super.Folder_*.AppImage` then run it. The tray icon needs an AppIndicator-capable desktop (GNOME needs the *AppIndicator* extension).
+- **Linux AppImage:** `chmod +x DeskZero_*.AppImage` then run it. The tray icon needs an AppIndicator-capable desktop (GNOME needs the *AppIndicator* extension).
 
 ## Getting started
 
