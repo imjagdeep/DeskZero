@@ -35,7 +35,7 @@ Put files into one folder — your **DeskZero** — and they get sorted into `Im
 | **Never touch** | An ignore list (`*.lnk`, `Thumbs*.jpg`…). Hidden and system files are always left alone. |
 | **Preview** | "Organize 12 files?" with every move listed. Name clashes can ask you: keep both, replace or skip. |
 | **Undo** | Every batch is recorded; History puts files back and removes folders it left empty. |
-| **Universal search** | Press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere: a floating bar finds files, folders and apps as you type. |
+| **Universal search** | Press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere: a floating bar finds files, folders and apps as you type, with their real icons. Like Spotlight, it closes when you click anywhere else, switch apps or press Esc. On Windows it also finds built-in apps such as Calculator, Notepad, Terminal and Settings. |
 | **Duplicates** | Finds identical files (size + SHA-256). Move extra copies aside in one click; never deletes. |
 | **Cleanup** | Moves files you haven't touched in 30/90/180/365 days into an Archive folder. |
 | **Storage** | See how much space each folder in your DeskZero uses. |
