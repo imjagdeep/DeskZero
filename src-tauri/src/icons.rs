@@ -15,7 +15,17 @@ pub struct IconCache(Mutex<HashMap<String, Option<String>>>);
 const SIZE: u16 = 48;
 
 /// Extensions whose icon belongs to the file itself, not its type.
-const OWN_ICON: &[&str] = &["exe", "lnk", "url", "ico", "app", "appref-ms", "msc", "cpl", "scr"];
+const OWN_ICON: &[&str] = &[
+    "exe",
+    "lnk",
+    "url",
+    "ico",
+    "app",
+    "appref-ms",
+    "msc",
+    "cpl",
+    "scr",
+];
 
 fn cache_key(path: &Path, kind: &str) -> String {
     let ext = path
