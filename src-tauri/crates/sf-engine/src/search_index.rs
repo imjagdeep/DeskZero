@@ -202,7 +202,10 @@ fn collect_files(root: &Path, entries: &mut Vec<Entry>, apps: &HashSet<String>, 
         let name = e.file_name().to_string_lossy().into_owned();
         // A desktop shortcut to an app already listed would show twice.
         if kind == EntryKind::File {
-            if let Some(stem) = name.strip_suffix(".lnk").or_else(|| name.strip_suffix(".LNK")) {
+            if let Some(stem) = name
+                .strip_suffix(".lnk")
+                .or_else(|| name.strip_suffix(".LNK"))
+            {
                 if apps.contains(&stem.to_lowercase()) {
                     continue;
                 }
@@ -409,7 +412,10 @@ mod tests {
         let hits = idx.query("notepad", 5);
         assert_eq!(hits.len(), 1, "{hits:?}");
         assert_eq!(hits[0].kind, EntryKind::App);
-        assert!(hits[0].path.to_string_lossy().starts_with("shell:AppsFolder"));
+        assert!(hits[0]
+            .path
+            .to_string_lossy()
+            .starts_with("shell:AppsFolder"));
         assert_eq!(idx.query("notes", 5).len(), 1);
     }
 
