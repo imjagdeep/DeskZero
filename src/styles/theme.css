@@ -14,11 +14,13 @@
   --text-3: #8e8e93;
   --sep: rgba(0, 0, 0, 0.08);
   --hover: rgba(0, 0, 0, 0.045);
-  --selected: rgba(0, 122, 255, 0.12);
-  --accent: #007aff;
-  --accent-hover: #0068d9;
+  --selected: rgba(0, 0, 0, 0.07);
+  --accent: #1d1d1f;
+  --accent-hover: #3a3a3c;
   --accent-text: #ffffff;
-  --accent-soft: rgba(0, 122, 255, 0.1);
+  --accent-soft: rgba(0, 0, 0, 0.07);
+  /* graphite with a little gloss, for the selected sidebar item and primary buttons */
+  --accent-grad: linear-gradient(180deg, #48484c 0%, #1d1d1f 100%);
   --green: #28a745;
   --green-soft: rgba(52, 199, 89, 0.14);
   --orange: #e08600;
@@ -49,10 +51,12 @@
     --text-3: #7c7c80;
     --sep: rgba(255, 255, 255, 0.08);
     --hover: rgba(255, 255, 255, 0.06);
-    --selected: rgba(10, 132, 255, 0.22);
-    --accent: #0a84ff;
-    --accent-hover: #3a9bff;
-    --accent-soft: rgba(10, 132, 255, 0.16);
+    --selected: rgba(255, 255, 255, 0.12);
+    --accent: #f5f5f7;
+    --accent-hover: #ffffff;
+    --accent-soft: rgba(255, 255, 255, 0.12);
+    --accent-text: #1d1d1f;
+    --accent-grad: linear-gradient(180deg, #ffffff 0%, #dcdce0 100%);
     --green: #32d74b;
     --green-soft: rgba(50, 215, 75, 0.14);
     --orange: #ff9f0a;
@@ -78,10 +82,12 @@
   --text-3: #7c7c80;
   --sep: rgba(255, 255, 255, 0.08);
   --hover: rgba(255, 255, 255, 0.06);
-  --selected: rgba(10, 132, 255, 0.22);
-  --accent: #0a84ff;
-  --accent-hover: #3a9bff;
-  --accent-soft: rgba(10, 132, 255, 0.16);
+  --selected: rgba(255, 255, 255, 0.12);
+  --accent: #f5f5f7;
+  --accent-hover: #ffffff;
+  --accent-soft: rgba(255, 255, 255, 0.12);
+  --accent-text: #1d1d1f;
+  --accent-grad: linear-gradient(180deg, #ffffff 0%, #dcdce0 100%);
   --green: #32d74b;
   --green-soft: rgba(50, 215, 75, 0.14);
   --orange: #ff9f0a;
@@ -122,11 +128,11 @@ button {
 button:hover:not(:disabled) { filter: brightness(0.97); }
 button:active:not(:disabled) { filter: brightness(0.92); }
 button:disabled { opacity: 0.45; }
-button.primary { background: var(--accent); color: var(--accent-text); box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.2); }
+button.primary { background: var(--accent-grad); color: var(--accent-text); box-shadow: 0 0.5px 1.5px rgba(0, 0, 0, 0.25), inset 0 0.5px 0 rgba(255, 255, 255, 0.18); }
 button.primary:hover:not(:disabled) { background: var(--accent-hover); filter: none; }
 button.big { height: 34px; padding: 0 18px; font-size: 13px; font-weight: 500; border-radius: 8px; }
 button.with-icon { display: inline-flex; align-items: center; gap: 6px; }
-button.link { background: none; box-shadow: none; color: var(--accent); padding: 0 6px; height: auto; }
+button.link { background: none; box-shadow: none; color: var(--accent); padding: 0 6px; height: auto; text-decoration: underline; text-decoration-color: color-mix(in srgb, currentColor 35%, transparent); text-underline-offset: 2px; }
 button.link:hover:not(:disabled) { filter: none; text-decoration: underline; }
 button.link.danger { color: var(--red); }
 button.icon { width: 26px; padding: 0; height: 24px; }
@@ -171,6 +177,7 @@ input[type="checkbox"]::after {
   transition: transform 0.18s;
 }
 input[type="checkbox"]:checked { background: var(--accent); }
+input[type="checkbox"]:checked::after { background: var(--accent-text); }
 input[type="checkbox"]:checked::after { transform: translateX(13px); }
 input[type="checkbox"]:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft); }
 
@@ -206,10 +213,10 @@ input[type="checkbox"]:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .nav-item svg { color: var(--text-2); flex-shrink: 0; }
 .nav-item:hover:not(:disabled) { background: var(--hover); filter: none; }
-.nav-item.active { background: var(--selected); color: var(--accent); }
-.nav-item.active svg { color: var(--accent); }
+.nav-item.active { background: var(--accent-grad); color: var(--accent-text); box-shadow: 0 1px 2px rgba(0, 0, 0, 0.18); }
+.nav-item.active svg { color: var(--accent-text); }
 .nav-label { flex: 1; overflow: hidden; text-overflow: ellipsis; }
-.count { min-width: 20px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: #fff; font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
+.count { min-width: 20px; height: 18px; padding: 0 6px; border-radius: 9px; background: var(--accent); color: var(--accent-text); font-size: 11px; font-weight: 600; display: inline-flex; align-items: center; justify-content: center; }
 .sidebar-foot { margin-top: auto; padding: 10px 10px 0; font-size: 12px; color: var(--text-2); display: flex; align-items: center; gap: 7px; border-top: 0.5px solid var(--sep); }
 .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--text-3); }
 .dot.on { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
@@ -376,12 +383,12 @@ html.spot-window, html.spot-window body, html.spot-window #root { background: tr
   max-height: 352px; overflow-y: auto;
 }
 .spot-row { display: flex; align-items: center; gap: 12px; padding: 7px 10px; border-radius: 11px; }
-.spot-row.selected { background: var(--accent); color: #fff; }
-.spot-row.selected .spot-path, .spot-row.selected .spot-hint { color: rgba(255, 255, 255, 0.8); }
+.spot-row.selected { background: var(--accent-grad); color: var(--accent-text); }
+.spot-row.selected .spot-path, .spot-row.selected .spot-hint { color: color-mix(in srgb, var(--accent-text) 75%, transparent); }
 .spot-icon { width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; background: var(--hover); color: var(--text-2); }
 .spot-icon.app { color: var(--accent); background: var(--accent-soft); }
 .spot-icon.folder { color: #e0a000; background: rgba(255, 196, 0, 0.16); }
-.spot-row.selected .spot-icon { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.spot-row.selected .spot-icon { background: color-mix(in srgb, var(--accent-text) 18%, transparent); color: var(--accent-text); }
 .spot-icon.native, .spot-row.selected .spot-icon.native { background: none; }
 .spot-icon.native img { width: 28px; height: 28px; object-fit: contain; }
 .spot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }

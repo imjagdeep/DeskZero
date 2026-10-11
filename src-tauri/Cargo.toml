@@ -1,6 +1,6 @@
 [package]
 name = "deskzero"
-version = "0.3.8"
+version = "0.3.9"
 description = "Offline desktop file organizer"
 license = "MIT"
 edition = "2021"
