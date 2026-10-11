@@ -65,7 +65,10 @@ impl IconCache {
 #[cfg(any(windows, target_os = "macos"))]
 fn load(path: &Path) -> Option<String> {
     #[cfg(windows)]
-    if path.to_string_lossy().starts_with(crate::finder::SHELL_APPS) {
+    if path
+        .to_string_lossy()
+        .starts_with(crate::finder::SHELL_APPS)
+    {
         let (w, h, pixels) = shell_item_icon(&path.to_string_lossy(), i32::from(SIZE))?;
         return png_data_url(w, h, &pixels);
     }
