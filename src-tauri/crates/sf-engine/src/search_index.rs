@@ -403,7 +403,7 @@ mod tests {
         fs::write(desk.join("notes.txt"), b"x").unwrap();
         let extra = vec![(
             "Notepad".to_string(),
-            PathBuf::from("shell:AppsFolder\Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"),
+            PathBuf::from(r"shell:AppsFolder\Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"),
         )];
         let idx = Index::build(&[tmp.path().to_path_buf()], &[], &extra, 1000);
         let hits = idx.query("notepad", 5);
