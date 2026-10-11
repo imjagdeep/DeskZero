@@ -27,7 +27,7 @@ jobs:
             -f tag_name="$TAG" \
             -f name="DeskZero $TAG" \
             -F draft=true \
-            -f body="Installers for Windows, macOS (Apple Silicon and Intel) and Linux. The builds are not code-signed yet; see the README for how to open them the first time." \
+            -f body="Installers for Windows, macOS (Apple Silicon and Intel) and Linux. The macOS builds are signed and notarized by Apple. The Windows and Linux builds are not code-signed yet; see the README for how to open them the first time." \
             --jq .id)
           echo "id=$id" >> "$GITHUB_OUTPUT"
 
@@ -78,9 +78,25 @@ jobs:
         working-directory: src-tauri
         run: cargo test -p sf-engine
 
+      # Notarization key (.p8) as a file for the Apple tools.
+      - name: Apple notarization key
+        if: runner.os == 'macOS'
+        env:
+          APPLE_API_KEY_P8: ${{ secrets.APPLE_API_KEY_P8 }}
+        run: |
+          printf '%s' "$APPLE_API_KEY_P8" > "$RUNNER_TEMP/AuthKey.p8"
+          echo "APPLE_API_KEY_PATH=$RUNNER_TEMP/AuthKey.p8" >> "$GITHUB_ENV"
+
       - uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS: sign with the Developer ID certificate, then notarize with
+          # the App Store Connect API key, so Gatekeeper opens it without a warning.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           # Signs the update packages; the matching public key is in tauri.conf.json.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
