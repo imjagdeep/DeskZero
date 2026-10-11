@@ -55,7 +55,7 @@ Download the latest installer from [Releases](../../releases):
 | macOS (Intel) | `DeskZero_x.y.z_x64.dmg` | |
 | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu/Debian) | |
 
-- **macOS:** pick the dmg for your Mac ( → About This Mac: Apple chip = `aarch64`, Intel = `x64`) and drag DeskZero to Applications. From 0.3.7 the Mac builds are signed with a Developer ID and notarized by Apple, so they open without a warning. (Older versions: if macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once in Terminal.)
+- **macOS:** pick the dmg for your Mac ( → About This Mac: Apple chip = `aarch64`, Intel = `x64`) and drag DeskZero to Applications. The Mac builds are signed with a Developer ID and notarized by Apple, so they open without a warning. DeskZero lives in the menu bar: it shows in the Dock only while its window is open. (Older versions: if macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once in Terminal.)
 
 The Windows and Linux builds are not code-signed yet, so they warn the first time:
 

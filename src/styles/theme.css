@@ -195,6 +195,9 @@ input[type="checkbox"]:focus-visible { box-shadow: 0 0 0 3px var(--accent-soft);
 }
 .brand { display: flex; align-items: center; gap: 9px; padding: 2px 8px 12px; font-weight: 700; font-size: 14px; letter-spacing: -0.01em; }
 .brand-logo { width: 26px; height: 26px; }
+/* The logo has dark parts: a faint light edge keeps its shape on dark surfaces. */
+:root[data-theme="dark"] .brand-logo { filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.55)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.12)); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .brand-logo { filter: drop-shadow(0 0 0.6px rgba(255, 255, 255, 0.55)) drop-shadow(0 0 2px rgba(255, 255, 255, 0.12)); } }
 .nav-group { margin-bottom: 10px; }
 .nav-title { font-size: 11px; font-weight: 600; color: var(--text-3); padding: 6px 10px 4px; }
 .nav-item {
@@ -370,7 +373,7 @@ html.spot-window, html.spot-window body, html.spot-window #root { background: tr
   background: var(--window); border-radius: 32px;
   box-shadow: 0 10px 34px rgba(0, 0, 0, 0.22), 0 0 0 0.5px rgba(0, 0, 0, 0.12);
 }
-.spot-logo { width: 38px; height: 38px; }
+.spot-logo { width: 38px; height: 38px; filter: drop-shadow(0 0 0.8px rgba(255, 255, 255, 0.6)) drop-shadow(0 0 3px rgba(255, 255, 255, 0.12)); }
 .spot-input {
   flex: 1; height: 44px !important; border: none !important; box-shadow: none !important; background: transparent !important;
   font-size: 19px; padding: 0 !important;
