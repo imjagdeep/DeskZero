@@ -66,6 +66,15 @@ pub fn set_context_menu(enabled: bool) -> Result<(), String> {
 /// `gtk-launch` (opening them would show the file in an editor).
 pub fn launch(app: &tauri::AppHandle, path: &Path) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
+    let text = path.to_string_lossy();
+    if cfg!(windows) && text.starts_with(crate::finder::SHELL_APPS) {
+        // A Store app: Explorer starts it from its Start menu id.
+        return std::process::Command::new("explorer.exe")
+            .arg(text.as_ref())
+            .spawn()
+            .map(|_| ())
+            .map_err(|e| format!("could not start the app: {e}"));
+    }
     if cfg!(target_os = "linux") && path.extension().is_some_and(|e| e == "desktop") {
         let id = path
             .file_name()

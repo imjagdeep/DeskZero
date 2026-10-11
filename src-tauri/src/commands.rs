@@ -635,6 +635,16 @@ pub fn universal_search(
     finder.query(&query, 12)
 }
 
+/// System icons for search results, as data URLs keyed by path. A plain
+/// (non-async) command runs on the main thread, which the icon APIs want.
+#[tauri::command]
+pub fn search_icons(
+    cache: State<'_, crate::icons::IconCache>,
+    items: Vec<(String, String)>,
+) -> std::collections::HashMap<String, String> {
+    cache.get(&items[..items.len().min(24)])
+}
+
 #[tauri::command]
 pub fn search_info(app: AppHandle) -> crate::finder::FinderInfo {
     crate::finder::info(&app)
@@ -647,7 +657,10 @@ pub fn rebuild_search(app: AppHandle) {
 
 #[tauri::command]
 pub fn launch(app: AppHandle, path: PathBuf) -> CmdResult<()> {
-    if !path.exists() {
+    let store_app = path
+        .to_string_lossy()
+        .starts_with(crate::finder::SHELL_APPS);
+    if !store_app && !path.exists() {
         return Err(format!("{} no longer exists", path.display()));
     }
     crate::shell::launch(&app, &path)

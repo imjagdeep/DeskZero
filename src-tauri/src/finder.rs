@@ -5,7 +5,7 @@ use crate::state::AppState;
 use serde::Serialize;
 use sf_engine::search_index::{default_app_roots, default_file_roots, Entry, Index};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
@@ -63,7 +63,7 @@ pub fn rebuild(app: &AppHandle) {
     std::thread::spawn(move || {
         let roots = roots(&app);
         let started = Instant::now();
-        let index = Index::build(&roots, &default_app_roots(), MAX_ENTRIES);
+        let index = Index::build(&roots, &default_app_roots(), &store_apps(), MAX_ENTRIES);
         tracing::info!(
             "search index: {} entries in {:?}",
             index.len(),
@@ -79,6 +79,62 @@ pub fn rebuild(app: &AppHandle) {
         finder.building.store(false, Ordering::SeqCst);
         let _ = app.emit("search-index-ready", ());
     });
+}
+
+/// Prefix for apps that live in the Start menu without a shortcut file
+/// (Calculator, Notepad, Terminal, Settings...): opened through Explorer.
+pub const SHELL_APPS: &str = "shell:AppsFolder\\";
+
+/// Windows Store apps from the Start menu (`Get-StartApps`). Desktop apps
+/// already come from the Start Menu folders, so only packaged ones (an id
+/// with `!`) are added.
+#[cfg(windows)]
+fn store_apps() -> Vec<(String, PathBuf)> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    #[derive(serde::Deserialize)]
+    struct StartApp {
+        #[serde(rename = "Name")]
+        name: String,
+        #[serde(rename = "AppID")]
+        id: String,
+    }
+    let out = match std::process::Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "[Console]::OutputEncoding = [Text.Encoding]::UTF8; @(Get-StartApps | Select-Object Name, AppID) | ConvertTo-Json -Compress",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+    {
+        Ok(o) if o.status.success() => o.stdout,
+        Ok(o) => {
+            tracing::warn!("Get-StartApps failed: {}", String::from_utf8_lossy(&o.stderr));
+            return Vec::new();
+        }
+        Err(e) => {
+            tracing::warn!("could not run Get-StartApps: {e}");
+            return Vec::new();
+        }
+    };
+    let apps: Vec<StartApp> = match serde_json::from_slice(&out) {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!("unexpected Get-StartApps output: {e}");
+            return Vec::new();
+        }
+    };
+    apps.into_iter()
+        .filter(|a| a.id.contains('!') && !a.name.trim().is_empty())
+        .map(|a| (a.name, PathBuf::from(format!("{SHELL_APPS}{}", a.id))))
+        .collect()
+}
+
+#[cfg(not(windows))]
+fn store_apps() -> Vec<(String, PathBuf)> {
+    Vec::new()
 }
 
 /// Initial build plus a periodic refresh so new files show up.
@@ -105,6 +161,9 @@ pub fn info(app: &AppHandle) -> FinderInfo {
     }
 }
 
+/// Bumped on every show, so an older watchdog stops when a newer one starts.
+static SHOWN: AtomicU64 = AtomicU64::new(0);
+
 /// Toggle the search window: show it centred and focused, or hide it.
 pub fn toggle(app: &AppHandle) {
     let Some(w) = app.get_webview_window("spotlight") else {
@@ -115,7 +174,94 @@ pub fn toggle(app: &AppHandle) {
         return;
     }
     let _ = w.center();
+    // macOS: bring the app forward too, or typing stays in the previous app.
+    #[cfg(target_os = "macos")]
+    let _ = app.show();
     let _ = w.show();
     let _ = w.set_focus();
+    force_foreground(&w);
     let _ = app.emit_to("spotlight", "spotlight-shown", ());
+    watch_focus(w);
 }
+
+/// Like Spotlight: once the bar has had focus, losing it (a click elsewhere,
+/// Alt+Tab, another app popping up) hides it. The page also hides on blur;
+/// this catches the cases where that event never arrives.
+fn watch_focus(w: tauri::WebviewWindow) {
+    let me = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let tick = Duration::from_millis(120);
+        let mut had_focus = false;
+        let mut retried = false;
+        let mut misses = 0;
+        let started = Instant::now();
+        loop {
+            std::thread::sleep(tick);
+            if SHOWN.load(Ordering::SeqCst) != me || !w.is_visible().unwrap_or(false) {
+                return;
+            }
+            if w.is_focused().unwrap_or(true) {
+                had_focus = true;
+                misses = 0;
+                continue;
+            }
+            if !had_focus {
+                // Windows sometimes refuses the first focus request.
+                if !retried && started.elapsed() > Duration::from_millis(250) {
+                    retried = true;
+                    let _ = w.set_focus();
+                    force_foreground(&w);
+                }
+                // Never got focus at all: don't leave it floating forever.
+                if started.elapsed() > Duration::from_secs(3) {
+                    let _ = w.hide();
+                    return;
+                }
+                continue;
+            }
+            // Two misses in a row, so a focus hand-off flicker doesn't count.
+            misses += 1;
+            if misses >= 2 {
+                let _ = w.hide();
+                return;
+            }
+        }
+    });
+}
+
+/// Windows only gives keyboard focus to a window whose thread is attached to
+/// the current foreground thread; a hotkey alone isn't always enough.
+#[cfg(windows)]
+fn force_foreground(w: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+    };
+    let Ok(raw) = w.hwnd() else {
+        return;
+    };
+    // Tauri's HWND may come from another windows-crate version: go through
+    // the raw pointer.
+    let hwnd = HWND(raw.0 as *mut core::ffi::c_void);
+    // SAFETY: plain Win32 calls on a live window handle; the input attachment
+    // is undone before returning.
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg == hwnd {
+            return;
+        }
+        let fg_thread = GetWindowThreadProcessId(fg, None);
+        let me = GetCurrentThreadId();
+        let attached =
+            fg_thread != 0 && fg_thread != me && AttachThreadInput(me, fg_thread, true).as_bool();
+        let _ = BringWindowToTop(hwnd);
+        let _ = SetForegroundWindow(hwnd);
+        if attached {
+            let _ = AttachThreadInput(me, fg_thread, false);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn force_foreground(_w: &tauri::WebviewWindow) {}

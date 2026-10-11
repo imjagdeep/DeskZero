@@ -3,7 +3,8 @@
 //! folders once in the background; queries never touch the disk.
 //!
 //! Apps come from the platform's launcher folders: Start Menu shortcuts on
-//! Windows, `.app` bundles on macOS, `.desktop` entries on Linux.
+//! Windows, `.app` bundles on macOS, `.desktop` entries on Linux. The app
+//! can add more (Windows Store apps, which have no shortcut file).
 
 use crate::fsutil::is_hidden_or_system;
 use std::collections::HashSet;
@@ -51,13 +52,32 @@ const SKIP_DIRS: &[&str] = &[
 const MAX_DEPTH: usize = 14;
 
 impl Index {
-    /// Walk `file_roots` (recursively) and `app_roots`; stop at `limit`
-    /// entries so a giant drive can't eat memory.
-    pub fn build(file_roots: &[PathBuf], app_roots: &[PathBuf], limit: usize) -> Index {
+    /// Walk `file_roots` (recursively) and `app_roots`, plus `extra_apps`
+    /// (name, launch path); stop at `limit` entries so a giant drive can't
+    /// eat memory.
+    pub fn build(
+        file_roots: &[PathBuf],
+        app_roots: &[PathBuf],
+        extra_apps: &[(String, PathBuf)],
+        limit: usize,
+    ) -> Index {
         let mut entries = Vec::new();
         let mut seen_apps: HashSet<String> = HashSet::new();
         for root in app_roots {
             collect_apps(root, &mut entries, &mut seen_apps);
+        }
+        for (name, path) in extra_apps {
+            let lower = name.to_lowercase();
+            if lower.contains("uninstall") || !seen_apps.insert(lower.clone()) {
+                continue;
+            }
+            entries.push(Entry {
+                path: path.clone(),
+                name: name.clone(),
+                kind: EntryKind::App,
+                name_lower: lower,
+                modified: None,
+            });
         }
         let mut seen_roots: Vec<PathBuf> = Vec::new();
         for root in file_roots {
@@ -66,7 +86,7 @@ impl Index {
                 continue;
             }
             seen_roots.push(root.clone());
-            collect_files(root, &mut entries, limit);
+            collect_files(root, &mut entries, &seen_apps, limit);
             if entries.len() >= limit {
                 break;
             }
@@ -152,7 +172,7 @@ fn starts_word(name: &str, word: &str) -> bool {
     false
 }
 
-fn collect_files(root: &Path, entries: &mut Vec<Entry>, limit: usize) {
+fn collect_files(root: &Path, entries: &mut Vec<Entry>, apps: &HashSet<String>, limit: usize) {
     let walker = WalkDir::new(root)
         .follow_links(false)
         .max_depth(MAX_DEPTH)
@@ -180,6 +200,17 @@ fn collect_files(root: &Path, entries: &mut Vec<Entry>, limit: usize) {
             continue;
         };
         let name = e.file_name().to_string_lossy().into_owned();
+        // A desktop shortcut to an app already listed would show twice.
+        if kind == EntryKind::File {
+            if let Some(stem) = name
+                .strip_suffix(".lnk")
+                .or_else(|| name.strip_suffix(".LNK"))
+            {
+                if apps.contains(&stem.to_lowercase()) {
+                    continue;
+                }
+            }
+        }
         let modified = e.metadata().ok().and_then(|m| m.modified().ok());
         entries.push(Entry {
             name_lower: name.to_lowercase(),
@@ -324,7 +355,7 @@ mod tests {
     #[test]
     fn finds_files_and_folders_and_skips_junk() {
         let tmp = tree();
-        let idx = Index::build(&[tmp.path().to_path_buf()], &[], 1000);
+        let idx = Index::build(&[tmp.path().to_path_buf()], &[], &[], 1000);
         let hits = idx.query("invoice", 10);
         let names: Vec<&str> = hits.iter().map(|h| h.name.as_str()).collect();
         assert!(names.contains(&"Invoices"));
@@ -338,7 +369,7 @@ mod tests {
     #[test]
     fn prefix_matches_rank_before_inner_matches() {
         let tmp = tree();
-        let idx = Index::build(&[tmp.path().to_path_buf()], &[], 1000);
+        let idx = Index::build(&[tmp.path().to_path_buf()], &[], &[], 1000);
         let hits = idx.query("invoice", 10);
         let pos = |n: &str| hits.iter().position(|h| h.name == n).unwrap();
         assert!(pos("invoice-july.pdf") < pos("old_invoice.pdf"));
@@ -347,7 +378,7 @@ mod tests {
     #[test]
     fn all_words_must_match() {
         let tmp = tree();
-        let idx = Index::build(&[tmp.path().to_path_buf()], &[], 1000);
+        let idx = Index::build(&[tmp.path().to_path_buf()], &[], &[], 1000);
         assert_eq!(idx.query("invoice july", 10).len(), 1);
         assert!(idx.query("invoice zzz", 10).is_empty());
     }
@@ -359,7 +390,7 @@ mod tests {
         fs::create_dir_all(&start).unwrap();
         fs::write(start.join("Calculator.lnk"), b"x").unwrap();
         fs::write(start.join("Uninstall Thing.lnk"), b"x").unwrap();
-        let idx = Index::build(&[], &[tmp.path().to_path_buf()], 1000);
+        let idx = Index::build(&[], &[tmp.path().to_path_buf()], &[], 1000);
         let hits = idx.query("calc", 5);
         assert_eq!(hits.len(), 1);
         assert_eq!(hits[0].kind, EntryKind::App);
@@ -367,9 +398,31 @@ mod tests {
     }
 
     #[test]
+    fn store_apps_join_and_shortcuts_to_them_are_not_doubled() {
+        let tmp = tempfile::tempdir().unwrap();
+        let desk = tmp.path().join("Desktop");
+        fs::create_dir_all(&desk).unwrap();
+        fs::write(desk.join("Notepad.lnk"), b"x").unwrap();
+        fs::write(desk.join("notes.txt"), b"x").unwrap();
+        let extra = vec![(
+            "Notepad".to_string(),
+            PathBuf::from(r"shell:AppsFolder\Microsoft.WindowsNotepad_8wekyb3d8bbwe!App"),
+        )];
+        let idx = Index::build(&[tmp.path().to_path_buf()], &[], &extra, 1000);
+        let hits = idx.query("notepad", 5);
+        assert_eq!(hits.len(), 1, "{hits:?}");
+        assert_eq!(hits[0].kind, EntryKind::App);
+        assert!(hits[0]
+            .path
+            .to_string_lossy()
+            .starts_with("shell:AppsFolder"));
+        assert_eq!(idx.query("notes", 5).len(), 1);
+    }
+
+    #[test]
     fn limit_caps_memory() {
         let tmp = tree();
-        let idx = Index::build(&[tmp.path().to_path_buf()], &[], 2);
+        let idx = Index::build(&[tmp.path().to_path_buf()], &[], &[], 2);
         assert_eq!(idx.len(), 2);
     }
 }
