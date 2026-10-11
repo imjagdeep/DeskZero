@@ -1,0 +1,40 @@
+name: Test build
+
+# Run by hand (Actions tab or `gh workflow run test-build.yml --ref <branch>`):
+# builds the Windows installer from a branch and keeps it as a run artifact
+# for a few days, so a change can be tried on a real PC before a release.
+# Nothing is published.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Build the installer
+        env:
+          # The config asks for signed updater files; same key as releases.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        run: npm run tauri build -- --bundles nsis
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: deskzero-windows-${{ github.sha }}
+          path: src-tauri/target/release/bundle/nsis/*-setup.exe
+          retention-days: 5
