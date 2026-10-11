@@ -58,7 +58,7 @@ Download the latest installer from [Releases](../../releases):
 **The builds are not code-signed yet**, so your system will warn the first time:
 
 - **Windows:** SmartScreen says "Windows protected your PC". Click **More info → Run anyway**.
-- **macOS:** right-click the app in Applications → **Open** → **Open**. If macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once.
+- **macOS:** pick the dmg for your Mac ( → About This Mac: Apple chip = `aarch64`, Intel = `x64`) and drag DeskZero to Applications. The first time you open it, macOS says it can't check the developer: open **System Settings → Privacy & Security**, scroll down and click **Open Anyway** (on macOS 14 and older, right-click the app → **Open** also works). If macOS says the app "is damaged" (versions before 0.3.6), run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once in Terminal.
 - **Linux AppImage:** `chmod +x DeskZero_*.AppImage` then run it. The tray icon needs an AppIndicator-capable desktop (GNOME needs the *AppIndicator* extension).
 
 ## Getting started
