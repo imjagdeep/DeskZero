@@ -382,6 +382,8 @@ html.spot-window, html.spot-window body, html.spot-window #root { background: tr
 .spot-icon.app { color: var(--accent); background: var(--accent-soft); }
 .spot-icon.folder { color: #e0a000; background: rgba(255, 196, 0, 0.16); }
 .spot-row.selected .spot-icon { background: rgba(255, 255, 255, 0.2); color: #fff; }
+.spot-icon.native, .spot-row.selected .spot-icon.native { background: none; }
+.spot-icon.native img { width: 28px; height: 28px; object-fit: contain; }
 .spot-text { flex: 1; min-width: 0; display: flex; flex-direction: column; }
 .spot-name { font-size: 14px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .spot-path { font-size: 11.5px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

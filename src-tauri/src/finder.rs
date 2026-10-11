@@ -5,7 +5,7 @@ use crate::state::AppState;
 use serde::Serialize;
 use sf_engine::search_index::{default_app_roots, default_file_roots, Entry, Index};
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::sync::{Arc, RwLock};
 use std::time::{Duration, Instant};
 use tauri::{AppHandle, Emitter, Manager};
@@ -105,6 +105,9 @@ pub fn info(app: &AppHandle) -> FinderInfo {
     }
 }
 
+/// Bumped on every show, so an older watchdog stops when a newer one starts.
+static SHOWN: AtomicU64 = AtomicU64::new(0);
+
 /// Toggle the search window: show it centred and focused, or hide it.
 pub fn toggle(app: &AppHandle) {
     let Some(w) = app.get_webview_window("spotlight") else {
@@ -115,7 +118,94 @@ pub fn toggle(app: &AppHandle) {
         return;
     }
     let _ = w.center();
+    // macOS: bring the app forward too, or typing stays in the previous app.
+    #[cfg(target_os = "macos")]
+    let _ = app.show();
     let _ = w.show();
     let _ = w.set_focus();
+    force_foreground(&w);
     let _ = app.emit_to("spotlight", "spotlight-shown", ());
+    watch_focus(w);
 }
+
+/// Like Spotlight: once the bar has had focus, losing it (a click elsewhere,
+/// Alt+Tab, another app popping up) hides it. The page also hides on blur;
+/// this catches the cases where that event never arrives.
+fn watch_focus(w: tauri::WebviewWindow) {
+    let me = SHOWN.fetch_add(1, Ordering::SeqCst) + 1;
+    std::thread::spawn(move || {
+        let tick = Duration::from_millis(120);
+        let mut had_focus = false;
+        let mut retried = false;
+        let mut misses = 0;
+        let started = Instant::now();
+        loop {
+            std::thread::sleep(tick);
+            if SHOWN.load(Ordering::SeqCst) != me || !w.is_visible().unwrap_or(false) {
+                return;
+            }
+            if w.is_focused().unwrap_or(true) {
+                had_focus = true;
+                misses = 0;
+                continue;
+            }
+            if !had_focus {
+                // Windows sometimes refuses the first focus request.
+                if !retried && started.elapsed() > Duration::from_millis(250) {
+                    retried = true;
+                    let _ = w.set_focus();
+                    force_foreground(&w);
+                }
+                // Never got focus at all: don't leave it floating forever.
+                if started.elapsed() > Duration::from_secs(3) {
+                    let _ = w.hide();
+                    return;
+                }
+                continue;
+            }
+            // Two misses in a row, so a focus hand-off flicker doesn't count.
+            misses += 1;
+            if misses >= 2 {
+                let _ = w.hide();
+                return;
+            }
+        }
+    });
+}
+
+/// Windows only gives keyboard focus to a window whose thread is attached to
+/// the current foreground thread; a hotkey alone isn't always enough.
+#[cfg(windows)]
+fn force_foreground(w: &tauri::WebviewWindow) {
+    use windows::Win32::Foundation::HWND;
+    use windows::Win32::System::Threading::{AttachThreadInput, GetCurrentThreadId};
+    use windows::Win32::UI::WindowsAndMessaging::{
+        BringWindowToTop, GetForegroundWindow, GetWindowThreadProcessId, SetForegroundWindow,
+    };
+    let Ok(raw) = w.hwnd() else {
+        return;
+    };
+    // Tauri's HWND may come from another windows-crate version: go through
+    // the raw pointer.
+    let hwnd = HWND(raw.0 as *mut core::ffi::c_void);
+    // SAFETY: plain Win32 calls on a live window handle; the input attachment
+    // is undone before returning.
+    unsafe {
+        let fg = GetForegroundWindow();
+        if fg == hwnd {
+            return;
+        }
+        let fg_thread = GetWindowThreadProcessId(fg, None);
+        let me = GetCurrentThreadId();
+        let attached =
+            fg_thread != 0 && fg_thread != me && AttachThreadInput(me, fg_thread, true).as_bool();
+        let _ = BringWindowToTop(hwnd);
+        let _ = SetForegroundWindow(hwnd);
+        if attached {
+            let _ = AttachThreadInput(me, fg_thread, false);
+        }
+    }
+}
+
+#[cfg(not(windows))]
+fn force_foreground(_w: &tauri::WebviewWindow) {}

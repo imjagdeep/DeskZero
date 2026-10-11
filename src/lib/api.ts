@@ -48,6 +48,7 @@ export const api = {
     invoke<PlannedOp[]>("plan_old_files", { folder, days, dest }),
   storageOverview: () => invoke<FolderUsage[]>("storage_overview"),
   universalSearch: (query: string) => invoke<SearchEntry[]>("universal_search", { query }),
+  searchIcons: (items: [string, string][]) => invoke<Record<string, string>>("search_icons", { items }),
   searchInfo: () => invoke<FinderInfo>("search_info"),
   rebuildSearch: () => invoke<void>("rebuild_search"),
   launch: (path: string) => invoke<void>("launch", { path }),

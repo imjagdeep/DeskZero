@@ -2,6 +2,7 @@
 
 mod commands;
 mod finder;
+mod icons;
 mod organizer;
 mod shell;
 mod state;
@@ -99,6 +100,7 @@ pub fn run() {
             state.lock().startup_paths = shell::organize_args(&args);
             app.manage(state);
             app.manage(finder::Finder::default());
+            app.manage(icons::IconCache::default());
             finder::start(app.handle());
 
             for sc in [search_shortcut(), organize_shortcut()] {
@@ -163,6 +165,7 @@ pub fn run() {
             commands::plan_old_files,
             commands::storage_overview,
             commands::universal_search,
+            commands::search_icons,
             commands::search_info,
             commands::rebuild_search,
             commands::launch,

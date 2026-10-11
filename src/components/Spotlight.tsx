@@ -18,11 +18,15 @@ function shortPath(p: string): string {
 
 const KIND_LABEL: Record<SearchEntry["kind"], string> = { app: "Application", folder: "Folder", file: "File" };
 
+// System icons by path, kept for the whole session (the backend caches too).
+const iconCache = new Map<string, string>();
+
 export function Spotlight() {
   const [query, setQuery] = useState("");
   const [hits, setHits] = useState<SearchEntry[]>([]);
   const [sel, setSel] = useState(0);
   const [error, setError] = useState("");
+  const [, setIconTick] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const win = getCurrentWindow();
 
@@ -56,10 +60,19 @@ export function Spotlight() {
     api
       .universalSearch(query)
       .then((h) => {
-        if (live) {
-          setHits(h);
-          setSel(0);
-        }
+        if (!live) return;
+        setHits(h);
+        setSel(0);
+        const missing = h.filter((x) => !iconCache.has(x.path)).map((x): [string, string] => [x.path, x.kind]);
+        if (missing.length === 0) return;
+        api
+          .searchIcons(missing)
+          .then((icons) => {
+            for (const [p, url] of Object.entries(icons)) iconCache.set(p, url);
+            if (live) setIconTick((t) => t + 1);
+          })
+          // No icon is fine: the generic one stays.
+          .catch(() => undefined);
       })
       .catch((e) => live && setError(errorText(e)));
     return () => {
@@ -121,9 +134,15 @@ export function Spotlight() {
               onMouseEnter={() => setSel(i)}
               onClick={(e) => void open(h, e.ctrlKey || e.metaKey)}
             >
-              <span className={`spot-icon ${h.kind}`}>
-                {h.kind === "app" ? <AppGridIcon size={18} /> : h.kind === "folder" ? <FolderIcon size={18} /> : <FileIcon size={18} />}
-              </span>
+              {iconCache.has(h.path) ? (
+                <span className="spot-icon native">
+                  <img src={iconCache.get(h.path)} alt="" width={28} height={28} />
+                </span>
+              ) : (
+                <span className={`spot-icon ${h.kind}`}>
+                  {h.kind === "app" ? <AppGridIcon size={18} /> : h.kind === "folder" ? <FolderIcon size={18} /> : <FileIcon size={18} />}
+                </span>
+              )}
               <span className="spot-text">
                 <span className="spot-name">{h.name}</span>
                 <span className="spot-path">{h.kind === "app" ? KIND_LABEL.app : shortPath(parentDir(h.path))}</span>
