@@ -9,7 +9,7 @@ A tiny offline desktop app that keeps your folders organized.
 
 Put files into one folder — your **DeskZero** — and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
-- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is an update check, and only when you ask for it.
+- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is a daily update check (Settings › About to switch it off).
 - **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
 - **Small.** Built with Tauri and Rust; the installer is a few MB.
 
@@ -55,7 +55,7 @@ Download the latest installer from [Releases](../../releases):
 | macOS (Intel) | `DeskZero_x.y.z_x64.dmg` | |
 | Linux | `.AppImage` (any distro) or `.deb` (Ubuntu/Debian) | |
 
-- **macOS:** pick the dmg for your Mac ( → About This Mac: Apple chip = `aarch64`, Intel = `x64`) and drag DeskZero to Applications. From 0.3.7 the Mac builds are signed with a Developer ID and notarized by Apple, so they open without a warning. (Older versions: if macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once in Terminal.)
+- **macOS:** pick the dmg for your Mac ( → About This Mac: Apple chip = `aarch64`, Intel = `x64`) and drag DeskZero to Applications. The Mac builds are signed with a Developer ID and notarized by Apple, so they open without a warning. DeskZero lives in the menu bar: it shows in the Dock only while its window is open. (Older versions: if macOS says the app "is damaged", run `xattr -dr com.apple.quarantine "/Applications/DeskZero.app"` once in Terminal.)
 
 The Windows and Linux builds are not code-signed yet, so they warn the first time:
 
@@ -154,7 +154,7 @@ If another app already uses a shortcut, DeskZero keeps working without it.
 
 ## Updates
 
-Settings → About → **Check for updates** asks GitHub whether a newer release exists. If there is one, **Download & install** fetches it, checks its signature against the key built into the app, installs it and restarts. You can also turn on a weekly check. That's the only time the app connects to the internet.
+DeskZero checks GitHub once a day for a newer release. If there is one, it downloads it in the background, checks its signature against the key built into the app, and shows **Restart to update**: one click installs it and restarts. Settings → About has **Check for updates** and the switch to turn automatic updates off. That's the only time the app connects to the internet.
 
 ## Where data lives
 

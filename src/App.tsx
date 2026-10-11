@@ -2,10 +2,11 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useRef, useState } from "react";
 import { Toasts } from "./components/Common";
 import { PreviewModal } from "./components/PreviewModal";
+import { UpdateBanner } from "./components/UpdateBanner";
 import { Sidebar, type Page } from "./components/Sidebar";
 import { api } from "./lib/api";
-import { openPreview, refreshStatus, startStores, toast, toastError, useConfig } from "./lib/store";
-import { findUpdate, weeklyCheckDue } from "./lib/updates";
+import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
+import { checkAndDownload, dailyCheckDue } from "./lib/updates";
 import { Cleanup } from "./pages/Cleanup";
 import { History } from "./pages/History";
 import { Home } from "./pages/Home";
@@ -58,15 +59,25 @@ export default function App() {
     };
   }, []);
 
-  // Weekly update check, only if the user turned it on.
+  // Automatic updates: soon after start, then daily while DeskZero keeps
+  // running in the tray. Downloads quietly, then the banner (and a popup,
+  // for when only the tray icon is showing) offers a one-click restart.
+  const autoUpdate = !!cfg?.settings.auto_update;
   useEffect(() => {
-    if (!cfg?.settings.check_updates_weekly || !weeklyCheckDue()) return;
-    findUpdate()
-      .then((u) => u && toast(`DeskZero ${u.version} is available: Settings → About to install`))
-      .catch(() => {
-        // Offline or GitHub unreachable: stay quiet, it's a background check.
+    if (!autoUpdate) return;
+    const run = () => {
+      if (!dailyCheckDue()) return;
+      void checkAndDownload(false).then((v) => {
+        if (v) void api.notifyUpdate(v).catch(() => undefined);
       });
-  }, [cfg?.settings.check_updates_weekly]);
+    };
+    const first = window.setTimeout(run, 30_000);
+    const every = window.setInterval(run, 3 * 3600 * 1000);
+    return () => {
+      window.clearTimeout(first);
+      window.clearInterval(every);
+    };
+  }, [autoUpdate]);
 
   // "system" leaves the attribute off so the CSS media query decides.
   useEffect(() => {
@@ -89,6 +100,7 @@ export default function App() {
         {page === "settings" && <Settings />}
       </main>
       <PreviewModal />
+      <UpdateBanner app="DeskZero" />
       <Toasts />
     </div>
   );

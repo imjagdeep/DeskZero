@@ -331,9 +331,14 @@ pub struct Settings {
     /// Folders the universal search indexes. Empty = the usual user folders.
     #[serde(default)]
     pub search_roots: Vec<PathBuf>,
-    /// Check GitHub for a newer version once a week (off = only on request).
+    /// Old opt-in weekly check (before automatic updates). Kept so older
+    /// settings files still load; no longer used.
     #[serde(default)]
     pub check_updates_weekly: bool,
+    /// Check daily, download new versions in the background, then ask to
+    /// restart (one click).
+    #[serde(default = "default_true")]
+    pub auto_update: bool,
     /// Windows: "Organize with DeskZero" in the right-click menu.
     #[serde(default)]
     pub context_menu: bool,
@@ -379,6 +384,7 @@ impl Default for Settings {
             ignore_patterns: Vec::new(),
             search_roots: Vec::new(),
             check_updates_weekly: false,
+            auto_update: true,
             context_menu: false,
         }
     }
