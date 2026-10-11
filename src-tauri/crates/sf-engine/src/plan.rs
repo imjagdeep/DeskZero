@@ -440,7 +440,10 @@ mod tests {
         );
         assert_eq!(plan.len(), 1);
         assert_eq!(plan[0].dst, sf.join("Images").join("screenshot.png"));
-        assert!(matches!(plan[0].status, PlanStatus::Move { replace: false }));
+        assert!(matches!(
+            plan[0].status,
+            PlanStatus::Move { replace: false }
+        ));
     }
 
     #[test]

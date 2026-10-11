@@ -29,12 +29,12 @@ fn category_for_ext(ext: &str) -> Category {
     match ext {
         // --- Images ---
         "jpg" | "jpeg" | "jfif" | "png" | "gif" | "bmp" | "webp" | "svg" | "ico" | "tif"
-        | "tiff" | "heic" | "heif" | "avif" | "raw" | "cr2" | "nef" | "arw" | "dng"
-        | "psd" | "ai" | "eps" | "indd" => Category::Images,
+        | "tiff" | "heic" | "heif" | "avif" | "raw" | "cr2" | "nef" | "arw" | "dng" | "psd"
+        | "ai" | "eps" | "indd" => Category::Images,
 
         // --- Videos ---
-        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
-        | "3gp" | "ts" | "vob" | "rm" | "m2ts" | "mts" | "asf" | "divx" => Category::Videos,
+        "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg" | "3gp"
+        | "ts" | "vob" | "rm" | "m2ts" | "mts" | "asf" | "divx" => Category::Videos,
 
         // --- Audio ---
         "mp3" | "wav" | "flac" | "aac" | "ogg" | "oga" | "m4a" | "wma" | "opus" | "aiff"
@@ -63,8 +63,8 @@ fn category_for_ext(ext: &str) -> Category {
         }
 
         // --- Installers / packages ---
-        "exe" | "msi" | "msix" | "msixbundle" | "appx" | "appxbundle" | "msu" | "msp"
-        | "pkg" | "deb" | "rpm" | "apk" | "ipa" | "run" => Category::Installers,
+        "exe" | "msi" | "msix" | "msixbundle" | "appx" | "appxbundle" | "msu" | "msp" | "pkg"
+        | "deb" | "rpm" | "apk" | "ipa" | "run" => Category::Installers,
 
         // --- Disk images ---
         "iso" | "img" | "dmg" | "vhd" | "vhdx" | "vdi" | "vmdk" | "wim" | "qcow2" | "ova"
