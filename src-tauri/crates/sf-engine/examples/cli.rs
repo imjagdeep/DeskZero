@@ -251,7 +251,7 @@ fn cmd_rename(args: &[String]) -> Result<(), String> {
 fn cmd_find(args: &[String]) -> Result<(), String> {
     use sf_engine::search_index::{default_app_roots, default_file_roots, Index};
     let started = std::time::Instant::now();
-    let idx = Index::build(&default_file_roots(), &default_app_roots(), 400_000);
+    let idx = Index::build(&default_file_roots(), &default_app_roots(), &[], 400_000);
     println!("indexed {} entries in {:?}", idx.len(), started.elapsed());
     let query = args.join(" ");
     let t = std::time::Instant::now();

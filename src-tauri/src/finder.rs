@@ -63,7 +63,7 @@ pub fn rebuild(app: &AppHandle) {
     std::thread::spawn(move || {
         let roots = roots(&app);
         let started = Instant::now();
-        let index = Index::build(&roots, &default_app_roots(), MAX_ENTRIES);
+        let index = Index::build(&roots, &default_app_roots(), &store_apps(), MAX_ENTRIES);
         tracing::info!(
             "search index: {} entries in {:?}",
             index.len(),
@@ -79,6 +79,62 @@ pub fn rebuild(app: &AppHandle) {
         finder.building.store(false, Ordering::SeqCst);
         let _ = app.emit("search-index-ready", ());
     });
+}
+
+/// Prefix for apps that live in the Start menu without a shortcut file
+/// (Calculator, Notepad, Terminal, Settings...): opened through Explorer.
+pub const SHELL_APPS: &str = "shell:AppsFolder\\";
+
+/// Windows Store apps from the Start menu (`Get-StartApps`). Desktop apps
+/// already come from the Start Menu folders, so only packaged ones (an id
+/// with `!`) are added.
+#[cfg(windows)]
+fn store_apps() -> Vec<(String, PathBuf)> {
+    use std::os::windows::process::CommandExt;
+    const CREATE_NO_WINDOW: u32 = 0x0800_0000;
+    #[derive(serde::Deserialize)]
+    struct StartApp {
+        #[serde(rename = "Name")]
+        name: String,
+        #[serde(rename = "AppID")]
+        id: String,
+    }
+    let out = match std::process::Command::new("powershell.exe")
+        .args([
+            "-NoProfile",
+            "-NonInteractive",
+            "-Command",
+            "[Console]::OutputEncoding = [Text.Encoding]::UTF8; @(Get-StartApps | Select-Object Name, AppID) | ConvertTo-Json -Compress",
+        ])
+        .creation_flags(CREATE_NO_WINDOW)
+        .output()
+    {
+        Ok(o) if o.status.success() => o.stdout,
+        Ok(o) => {
+            tracing::warn!("Get-StartApps failed: {}", String::from_utf8_lossy(&o.stderr));
+            return Vec::new();
+        }
+        Err(e) => {
+            tracing::warn!("could not run Get-StartApps: {e}");
+            return Vec::new();
+        }
+    };
+    let apps: Vec<StartApp> = match serde_json::from_slice(&out) {
+        Ok(a) => a,
+        Err(e) => {
+            tracing::warn!("unexpected Get-StartApps output: {e}");
+            return Vec::new();
+        }
+    };
+    apps.into_iter()
+        .filter(|a| a.id.contains('!') && !a.name.trim().is_empty())
+        .map(|a| (a.name, PathBuf::from(format!("{SHELL_APPS}{}", a.id))))
+        .collect()
+}
+
+#[cfg(not(windows))]
+fn store_apps() -> Vec<(String, PathBuf)> {
+    Vec::new()
 }
 
 /// Initial build plus a periodic refresh so new files show up.

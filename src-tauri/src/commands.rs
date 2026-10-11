@@ -657,7 +657,8 @@ pub fn rebuild_search(app: AppHandle) {
 
 #[tauri::command]
 pub fn launch(app: AppHandle, path: PathBuf) -> CmdResult<()> {
-    if !path.exists() {
+    let store_app = path.to_string_lossy().starts_with(crate::finder::SHELL_APPS);
+    if !store_app && !path.exists() {
         return Err(format!("{} no longer exists", path.display()));
     }
     crate::shell::launch(&app, &path)
