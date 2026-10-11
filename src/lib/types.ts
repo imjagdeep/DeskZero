@@ -55,6 +55,7 @@ export interface Settings {
   ignore_patterns: string[];
   search_roots: string[];
   check_updates_weekly: boolean;
+  auto_update: boolean;
   context_menu: boolean;
 }
 

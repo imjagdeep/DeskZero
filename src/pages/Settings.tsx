@@ -1,11 +1,11 @@
 import { listen } from "@tauri-apps/api/event";
-import type { Update } from "@tauri-apps/plugin-updater";
 import { useEffect, useState } from "react";
 import { FolderField, PageHeader, pickFolder } from "../components/Common";
-import { api, errorText } from "../lib/api";
+import { api } from "../lib/api";
 import { refreshConfig, refreshStatus, toast, toastError, useConfig } from "../lib/store";
 import type { ConflictPolicy, FinderInfo, Settings as S, Theme } from "../lib/types";
-import { appVersion, findUpdate, installUpdate } from "../lib/updates";
+import { getVersion } from "@tauri-apps/api/app";
+import { checkAndDownload, installNow, useUpdate } from "../lib/updates";
 
 export function Settings() {
   const cfg = useConfig();
@@ -182,39 +182,13 @@ function SearchSection({ settings: s, save }: SectionProps) {
   );
 }
 
-type UpdateState =
-  | { kind: "idle" }
-  | { kind: "checking" }
-  | { kind: "latest" }
-  | { kind: "available"; update: Update }
-  | { kind: "installing"; pct: number | null }
-  | { kind: "error"; message: string };
-
 function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: string }) {
   const [version, setVersion] = useState("");
-  const [st, setSt] = useState<UpdateState>({ kind: "idle" });
+  const st = useUpdate();
   useEffect(() => {
-    appVersion().then(setVersion).catch(toastError);
+    getVersion().then(setVersion).catch(toastError);
   }, []);
-
-  async function check() {
-    setSt({ kind: "checking" });
-    try {
-      const u = await findUpdate();
-      setSt(u ? { kind: "available", update: u } : { kind: "latest" });
-    } catch (e) {
-      setSt({ kind: "error", message: errorText(e) });
-    }
-  }
-
-  async function install(update: Update) {
-    setSt({ kind: "installing", pct: 0 });
-    try {
-      await installUpdate(update, (pct) => setSt({ kind: "installing", pct }));
-    } catch (e) {
-      setSt({ kind: "error", message: errorText(e) });
-    }
-  }
+  const busy = st.kind === "checking" || st.kind === "downloading" || st.kind === "installing";
 
   return (
     <section className="card">
@@ -223,26 +197,30 @@ function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: 
         <div>
           <div className="about-title">DeskZero {version && <span className="muted">version {version}</span>}</div>
           <div className="muted small">
-            {st.kind === "idle" && "Updates are only checked when you ask."}
+            {st.kind === "idle" && (s.auto_update ? "Updates download automatically." : "Automatic updates are off.")}
             {st.kind === "checking" && "Checking GitHub for a newer version…"}
             {st.kind === "latest" && "You have the latest version."}
-            {st.kind === "available" && `Version ${st.update.version} is available.`}
-            {st.kind === "installing" && `Downloading and installing${st.pct != null ? ` (${st.pct}%)` : ""}… the app restarts when done.`}
-            {st.kind === "error" && <span className="error-text">Couldn't check for updates: {st.message}</span>}
+            {st.kind === "downloading" && `Downloading ${st.version}${st.pct != null ? ` (${st.pct}%)` : ""}…`}
+            {st.kind === "ready" && `Version ${st.version} is downloaded and ready.`}
+            {st.kind === "installing" && `Installing ${st.version}… DeskZero restarts by itself.`}
+            {st.kind === "error" && <span className="error-text">Couldn't update: {st.message}</span>}
           </div>
         </div>
-        {st.kind === "available" ? (
-          <button className="primary" onClick={() => void install(st.update)}>Download & install</button>
+        {st.kind === "ready" ? (
+          <button className="primary" onClick={() => void installNow()}>Restart to update</button>
         ) : (
-          <button onClick={() => void check()} disabled={st.kind === "checking" || st.kind === "installing"}>
+          <button onClick={() => void checkAndDownload(true)} disabled={busy}>
             Check for updates
           </button>
         )}
       </div>
-      {st.kind === "available" && st.update.body && <pre className="release-notes">{st.update.body}</pre>}
+      {st.kind === "ready" && st.notes && <pre className="release-notes">{st.notes}</pre>}
       <label className="check">
-        <input type="checkbox" checked={s.check_updates_weekly} onChange={(e) => void save({ check_updates_weekly: e.target.checked })} />
-        <span>Check for updates weekly<span className="muted small"> The only time DeskZero goes online. Off by default.</span></span>
+        <input type="checkbox" checked={s.auto_update} onChange={(e) => void save({ auto_update: e.target.checked })} />
+        <span>
+          Download updates automatically
+          <span className="muted small"> Checks GitHub once a day, downloads new versions in the background (signature-checked) and asks you to restart. Nothing else is sent.</span>
+        </span>
       </label>
       <p className="muted small">
         Works offline. No account, no cloud, no telemetry. Updates are downloaded from github.com/imjagdeep/deskzero and

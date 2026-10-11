@@ -9,7 +9,7 @@ A tiny offline desktop app that keeps your folders organized.
 
 Put files into one folder — your **DeskZero** — and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
-- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is an update check, and only when you ask for it.
+- **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is a daily update check (Settings › About to switch it off).
 - **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
 - **Small.** Built with Tauri and Rust; the installer is a few MB.
 
@@ -154,7 +154,7 @@ If another app already uses a shortcut, DeskZero keeps working without it.
 
 ## Updates
 
-Settings → About → **Check for updates** asks GitHub whether a newer release exists. If there is one, **Download & install** fetches it, checks its signature against the key built into the app, installs it and restarts. You can also turn on a weekly check. That's the only time the app connects to the internet.
+DeskZero checks GitHub once a day for a newer release. If there is one, it downloads it in the background, checks its signature against the key built into the app, and shows **Restart to update**: one click installs it and restarts. Settings → About has **Check for updates** and the switch to turn automatic updates off. That's the only time the app connects to the internet.
 
 ## Where data lives
 

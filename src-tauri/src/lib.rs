@@ -178,6 +178,7 @@ pub fn run() {
             commands::platform,
             commands::take_startup_paths,
             commands::open_link,
+            commands::notify_update,
             commands::plan_watch_folder,
         ])
         .build(tauri::generate_context!())

@@ -710,3 +710,18 @@ pub fn open_link(app: AppHandle, id: String) -> CmdResult<()> {
         .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
 }
+
+/// A downloaded update is ready: tell someone who only has the tray icon.
+#[tauri::command]
+pub fn notify_update(app: AppHandle, version: String) {
+    use tauri_plugin_notification::NotificationExt;
+    if let Err(e) = app
+        .notification()
+        .builder()
+        .title(format!("DeskZero {version} is ready"))
+        .body("Open DeskZero and choose Restart to update. It takes a few seconds.")
+        .show()
+    {
+        tracing::warn!("notification failed: {e}");
+    }
+}
