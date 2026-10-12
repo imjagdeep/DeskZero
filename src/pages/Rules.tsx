@@ -61,6 +61,39 @@ function shownCondition(c: Condition): string {
   return conditionText(c);
 }
 
+/** File › Export rules, and the button on this page. */
+export async function exportRulesFile() {
+  try {
+    const path = await saveDialog({ title: "Export rules", defaultPath: "rules.json", filters: [{ name: "Rules", extensions: ["json"] }] });
+    if (!path) return;
+    const n = await api.exportRules(path);
+    toast(`Exported ${n} rule${n === 1 ? "" : "s"}`);
+  } catch (e) {
+    toastError(e);
+  }
+}
+
+/** File › Import rules: asks whether to replace the `existing` ones. */
+export async function importRulesFile(existing: number) {
+  try {
+    const path = await open({ title: "Import rules", multiple: false, filters: [{ name: "Rules", extensions: ["json"] }] });
+    if (typeof path !== "string") return;
+    const replace =
+      existing > 0 &&
+      (await ask("Replace your current rules with the imported ones?\n\nChoose No to add them after your current rules.", {
+        title: "Import rules",
+        kind: "info",
+        okLabel: "Replace",
+        cancelLabel: "No, add them",
+      }));
+    const n = await api.importRules(path, replace);
+    await refreshConfig();
+    toast(`Imported ${n} rule${n === 1 ? "" : "s"}`);
+  } catch (e) {
+    toastError(e);
+  }
+}
+
 export function Rules() {
   const cfg = useConfig();
   const [editing, setEditing] = useState<Rule | null>(null);
@@ -78,36 +111,8 @@ export function Rules() {
     }
   }
 
-  async function exportFile() {
-    try {
-      const path = await saveDialog({ title: "Export rules", defaultPath: "rules.json", filters: [{ name: "Rules", extensions: ["json"] }] });
-      if (!path) return;
-      const n = await api.exportRules(path);
-      toast(`Exported ${n} rule${n === 1 ? "" : "s"}`);
-    } catch (e) {
-      toastError(e);
-    }
-  }
-
-  async function importFile() {
-    try {
-      const path = await open({ title: "Import rules", multiple: false, filters: [{ name: "Rules", extensions: ["json"] }] });
-      if (typeof path !== "string") return;
-      const replace =
-        rules.length > 0 &&
-        (await ask("Replace your current rules with the imported ones?\n\nChoose No to add them after your current rules.", {
-          title: "Import rules",
-          kind: "info",
-          okLabel: "Replace",
-          cancelLabel: "No, add them",
-        }));
-      const n = await api.importRules(path, replace);
-      await refreshConfig();
-      toast(`Imported ${n} rule${n === 1 ? "" : "s"}`);
-    } catch (e) {
-      toastError(e);
-    }
-  }
+  const exportFile = exportRulesFile;
+  const importFile = () => importRulesFile(rules.length);
 
   function move(rule: Rule, dir: -1 | 1) {
     const same = rules.filter((r) => r.kind === rule.kind);
