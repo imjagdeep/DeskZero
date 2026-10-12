@@ -1,0 +1,180 @@
+/* The app shell: menu bar, compact sidebar, About / shortcuts / command
+   palette, and small finishing touches. Same file in DeskZero, DeskMedic and
+   DeskFolio; colours come from theme.css. */
+
+.app-frame { height: 100%; display: flex; flex-direction: column; }
+.app-frame > .app { flex: 1; min-height: 0; height: auto; }
+
+/* ---------- menu bar ---------- */
+.menubar {
+  display: flex;
+  align-items: center;
+  gap: 1px;
+  height: 30px;
+  padding: 0 6px;
+  flex-shrink: 0;
+  background: var(--sidebar);
+  border-bottom: 0.5px solid var(--sidebar-border);
+  user-select: none;
+  position: relative;
+  z-index: 40;
+}
+.menubar-slot { position: relative; }
+.menubar-item {
+  height: 24px;
+  padding: 0 10px;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 450;
+}
+.menubar-item:hover, .menubar-item.open { background: var(--selected); filter: none; }
+
+.menu-pop {
+  position: absolute;
+  top: calc(100% + 3px);
+  left: 0;
+  min-width: 250px;
+  padding: 5px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--window) 94%, transparent);
+  backdrop-filter: blur(18px) saturate(1.4);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  animation: menu-in 0.12s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: top left;
+}
+.menu-sub { top: -5px; left: calc(100% + 2px); }
+@keyframes menu-in { from { opacity: 0; transform: translateY(-4px) scale(0.98); } }
+.menu-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 18px 1fr auto;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  height: 27px;
+  padding: 0 10px 0 6px;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--text);
+  font-size: 12.5px;
+  font-weight: 400;
+  text-align: left;
+  cursor: default;
+}
+.menu-row.hot:not(:disabled) { background: var(--accent-grad); color: var(--accent-text); filter: none; }
+.menu-row.hot:not(:disabled) .menu-accel, .menu-row.hot .menu-chev { color: color-mix(in srgb, var(--accent-text) 70%, transparent); }
+.menu-row:disabled { color: var(--text-3); opacity: 1; }
+.menu-check { font-size: 12px; text-align: center; }
+.menu-label { white-space: nowrap; }
+.menu-accel { color: var(--text-3); font-size: 11.5px; margin-left: 28px; white-space: nowrap; }
+.menu-chev { color: var(--text-3); font-size: 15px; line-height: 1; }
+.menu-sep { height: 0.5px; background: var(--sep); margin: 4px 8px; }
+
+/* ---------- sidebar: full and compact ---------- */
+.sidebar { transition: width 0.18s cubic-bezier(0.2, 0.8, 0.2, 1), padding 0.18s; }
+.brand { position: relative; }
+.brand-name { flex: 1; white-space: nowrap; overflow: hidden; }
+.side-toggle {
+  width: 26px;
+  height: 24px;
+  padding: 0;
+  border-radius: 6px;
+  background: none;
+  box-shadow: none;
+  color: var(--text-3);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.side-toggle:hover:not(:disabled) { background: var(--hover); color: var(--text); filter: none; }
+.side-toggle:disabled { opacity: 0.35; }
+.nav-item { position: relative; }
+.nav-item:active:not(:disabled) { transform: scale(0.985); }
+
+.sidebar.compact { width: 60px; padding-left: 8px; padding-right: 8px; overflow: visible; }
+.sidebar.compact .brand { flex-direction: column; gap: 8px; padding: 2px 0 10px; }
+.sidebar.compact .brand-name,
+.sidebar.compact .nav-label { display: none; }
+.sidebar.compact .nav-title { height: 0.5px; padding: 0; margin: 6px 8px 8px; background: var(--sep); font-size: 0; }
+.sidebar.compact .nav-group:first-of-type .nav-title { display: none; }
+.sidebar.compact .nav-item { justify-content: center; padding: 0; height: 34px; }
+.sidebar.compact .nav-item .count,
+.sidebar.compact .nav-item .nav-dot { position: absolute; top: 1px; right: 2px; transform: scale(0.8); }
+.sidebar.compact .sidebar-foot { justify-content: center; padding: 10px 0 0; font-size: 0; }
+.sidebar.compact .sidebar-foot > :not(.dot) { display: none; }
+/* The name next to an icon, right away (the native tooltip is slow). */
+.sidebar.compact .nav-item[data-tip]:hover::after {
+  content: attr(data-tip);
+  position: absolute;
+  left: calc(100% + 10px);
+  top: 50%;
+  transform: translateY(-50%);
+  padding: 4px 9px;
+  border-radius: 6px;
+  background: rgba(28, 28, 30, 0.94);
+  color: #fff;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+  z-index: 30;
+  animation: fade 0.12s ease-out;
+}
+
+/* ---------- About ---------- */
+.about-card { width: min(380px, 92vw); align-items: center; text-align: center; padding-top: 26px; }
+.about-card h2 { font-size: 20px; margin: 10px 0 2px; letter-spacing: -0.01em; }
+.about-logo { width: 76px; height: 76px; filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18)); }
+.about-tagline { margin: 12px 0 10px; color: var(--text-2); }
+.about-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 4px 14px; margin-bottom: 14px; }
+.about-card .modal-actions { align-self: stretch; }
+
+/* ---------- Keyboard shortcuts ---------- */
+.shortcuts-card { width: min(680px, 94vw); }
+.shortcut-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 26px; }
+.shortcut-cols h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); margin: 10px 0 4px; }
+.shortcut-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 0.5px solid var(--sep); }
+
+/* ---------- command palette ---------- */
+.palette {
+  width: min(580px, 92vw);
+  border-radius: 12px;
+  background: var(--window);
+  box-shadow: var(--shadow-lg);
+  overflow: hidden;
+  animation: sheet 0.18s cubic-bezier(0.2, 0.9, 0.3, 1.1);
+}
+.palette-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 18px;
+  border: 0;
+  border-bottom: 0.5px solid var(--sep);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  font-size: 15px;
+}
+.palette-input:focus { box-shadow: none; }
+.palette-list { max-height: min(52vh, 420px); overflow-y: auto; padding: 6px; }
+.palette-row { display: grid; grid-template-columns: 1fr auto auto; align-items: center; gap: 12px; height: 34px; padding: 0 12px; border-radius: 7px; cursor: default; }
+.palette-row.selected { background: var(--accent-grad); color: var(--accent-text); }
+.palette-row.selected .palette-path { color: color-mix(in srgb, var(--accent-text) 70%, transparent); }
+.palette-row.selected kbd { background: transparent; box-shadow: none; color: inherit; }
+.palette-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 500; }
+.palette-path { color: var(--text-3); font-size: 11.5px; white-space: nowrap; }
+.palette-empty { padding: 18px; text-align: center; color: var(--text-3); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sidebar { transition: none; }
+  .menu-pop, .palette { animation: none; }
+  .nav-item:active:not(:disabled) { transform: none; }
+}

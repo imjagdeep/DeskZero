@@ -702,6 +702,10 @@ pub fn reveal_file(app: AppHandle, path: PathBuf) -> CmdResult<()> {
 pub fn open_link(app: AppHandle, id: String) -> CmdResult<()> {
     let url = match id.as_str() {
         "developer" => "https://github.com/imjagdeep",
+        "site" => "https://jaggi.cc/tools/#deskzero",
+        "repo" => "https://github.com/imjagdeep/DeskZero",
+        "issues" => "https://github.com/imjagdeep/DeskZero/issues",
+        "releases" => "https://github.com/imjagdeep/DeskZero/releases/latest",
         "deskzero" => "https://github.com/imjagdeep/DeskZero/releases/latest",
         "deskmedic" => "https://github.com/imjagdeep/DeskMedic/releases/latest",
         "deskfolio" => "https://github.com/imjagdeep/DeskFolio/releases/latest",

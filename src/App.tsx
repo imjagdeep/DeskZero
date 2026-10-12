@@ -1,9 +1,13 @@
 import { listen } from "@tauri-apps/api/event";
-import { useEffect, useRef, useState } from "react";
+import { getVersion } from "@tauri-apps/api/app";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { useAppMenus } from "./appMenu";
+import logo from "./assets/logo.png";
 import { Toasts } from "./components/Common";
 import { PreviewModal } from "./components/PreviewModal";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { Sidebar, type Page } from "./components/Sidebar";
+import { PAGES, Sidebar, type Page } from "./components/Sidebar";
 import { api } from "./lib/api";
 import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
 import { checkAndDownload, dailyCheckDue } from "./lib/updates";
@@ -14,9 +18,15 @@ import { Rules } from "./pages/Rules";
 import { Settings } from "./pages/Settings";
 import { Duplicates, Rename, Search } from "./pages/Tools";
 import { WatchFolders } from "./pages/WatchFolders";
+import { ShellDialogs } from "./shell/Dialogs";
+import { MenuBar } from "./shell/MenuBar";
+import { applySavedZoom } from "./shell/shell";
 
 export default function App() {
-  const [page, setPage] = useState<Page>("home");
+  const [page, setPageRaw] = useState<Page>("home");
+  const setPage = useCallback((p: Page) => setPageRaw(p), []);
+  const menus = useAppMenus(setPage);
+  const [version, setVersion] = useState("");
   const cfg = useConfig();
   const theme = cfg?.settings.theme ?? "system";
   const incoming = useRef<string[]>([]);
@@ -79,6 +89,19 @@ export default function App() {
     };
   }, [autoUpdate]);
 
+  useEffect(() => {
+    getVersion().then(setVersion).catch(() => undefined);
+    void applySavedZoom().catch(() => undefined);
+  }, []);
+
+  // The window title names the page, like any desktop app.
+  useEffect(() => {
+    const where = PAGES.find((p) => p.page === page)?.label ?? "";
+    void getCurrentWindow()
+      .setTitle(page === "home" ? "DeskZero" : `${where} — DeskZero`)
+      .catch(() => undefined);
+  }, [page]);
+
   // "system" leaves the attribute off so the CSS media query decides.
   useEffect(() => {
     if (theme === "system") document.documentElement.removeAttribute("data-theme");
@@ -86,20 +109,39 @@ export default function App() {
   }, [theme]);
 
   return (
-    <div className="app">
-      <Sidebar page={page} onNavigate={setPage} />
-      <main className="content">
-        {page === "home" && <Home />}
-        {page === "watch" && <WatchFolders />}
-        {page === "rules" && <Rules />}
-        {page === "search" && <Search />}
-        {page === "duplicates" && <Duplicates />}
-        {page === "rename" && <Rename />}
-        {page === "cleanup" && <Cleanup />}
-        {page === "history" && <History />}
-        {page === "settings" && <Settings />}
-      </main>
+    <div className="app-frame">
+      <MenuBar appName="DeskZero" menus={menus} onError={toastError} />
+      <div className="app">
+        <Sidebar page={page} onNavigate={setPage} />
+        <main className="content">
+          {page === "home" && <Home />}
+          {page === "watch" && <WatchFolders />}
+          {page === "rules" && <Rules />}
+          {page === "search" && <Search />}
+          {page === "duplicates" && <Duplicates />}
+          {page === "rename" && <Rename />}
+          {page === "cleanup" && <Cleanup />}
+          {page === "history" && <History />}
+          {page === "settings" && <Settings />}
+        </main>
+      </div>
       <PreviewModal />
+      <ShellDialogs
+        menus={menus}
+        onError={toastError}
+        about={{
+          name: "DeskZero",
+          logo,
+          version,
+          tagline: "Keeps your Downloads and Desktop tidy, finds duplicates, and finds anything fast. Offline.",
+          links: [
+            { label: "Website", open: () => void api.openLink("site").catch(toastError) },
+            { label: "Source code", open: () => void api.openLink("repo").catch(toastError) },
+            { label: "What's new", open: () => void api.openLink("releases").catch(toastError) },
+            { label: "Report a problem", open: () => void api.openLink("issues").catch(toastError) },
+          ],
+        }}
+      />
       <UpdateBanner app="DeskZero" />
       <Toasts />
     </div>

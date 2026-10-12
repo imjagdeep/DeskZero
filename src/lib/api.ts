@@ -60,7 +60,7 @@ export const api = {
   launch: (path: string) => invoke<void>("launch", { path }),
   platform: () => invoke<string>("platform"),
   takeStartupPaths: () => invoke<string[]>("take_startup_paths"),
-  openLink: (id: "developer" | LabToolId) => invoke<void>("open_link", { id }),
+  openLink: (id: "site" | "repo" | "issues" | "releases" | "developer" | LabToolId) => invoke<void>("open_link", { id }),
   /** The other DeskLab tools and whether each is installed here. */
   desklabTools: () => invoke<LabTool[]>("desklab_tools"),
   /** Start an installed DeskLab tool, optionally with a file for it to open. */
