@@ -81,7 +81,9 @@ pub fn open(id: &str, file: Option<&Path>) -> Result<(), String> {
     if let Some(f) = file {
         cmd.arg(f);
     }
-    let mut child = cmd.spawn().map_err(|e| format!("couldn't start {name}: {e}"))?;
+    let mut child = cmd
+        .spawn()
+        .map_err(|e| format!("couldn't start {name}: {e}"))?;
     // Reap it when it exits so no zombie is left behind on macOS/Linux.
     std::thread::spawn(move || {
         if let Err(e) = child.wait() {
