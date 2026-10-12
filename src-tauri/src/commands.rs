@@ -702,13 +702,26 @@ pub fn reveal_file(app: AppHandle, path: PathBuf) -> CmdResult<()> {
 pub fn open_link(app: AppHandle, id: String) -> CmdResult<()> {
     let url = match id.as_str() {
         "developer" => "https://github.com/imjagdeep",
-        "deskzero" => "https://github.com/imjagdeep/deskzero",
-        "deskmedic" => "https://github.com/imjagdeep/DeskMedic",
+        "deskzero" => "https://github.com/imjagdeep/DeskZero/releases/latest",
+        "deskmedic" => "https://github.com/imjagdeep/DeskMedic/releases/latest",
+        "deskfolio" => "https://github.com/imjagdeep/DeskFolio/releases/latest",
         _ => return Err(format!("unknown link {id}")),
     };
     app.opener()
         .open_url(url, None::<&str>)
         .map_err(|e| e.to_string())
+}
+
+/// The other DeskLab tools and whether each is installed here.
+#[tauri::command]
+pub fn desklab_tools() -> Vec<crate::desklab::LabTool> {
+    crate::desklab::list("deskzero")
+}
+
+/// Start another DeskLab tool, optionally handing it one file.
+#[tauri::command]
+pub fn open_tool(id: String, file: Option<PathBuf>) -> CmdResult<()> {
+    crate::desklab::open(&id, file.as_deref())
 }
 
 /// A downloaded update is ready: tell someone who only has the tray icon.

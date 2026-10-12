@@ -1,6 +1,7 @@
 // The universal search bar (separate frameless window, Ctrl/Cmd+Shift+Space).
 // Type to search files, folders and apps; Enter opens, Ctrl/Cmd+Enter shows
-// in folder, Esc or clicking elsewhere hides it.
+// in folder, Alt+Enter opens a PDF in DeskFolio (when installed), Esc or
+// clicking elsewhere hides it.
 
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
@@ -16,6 +17,8 @@ function shortPath(p: string): string {
   return p.replace(/^[A-Za-z]:\\Users\\[^\\]+(?=\\|$)/, "~").replace(/^\/(Users|home)\/[^/]+(?=\/|$)/, "~");
 }
 
+const isPdf = (h: SearchEntry | undefined) => h?.kind === "file" && /\.pdf$/i.test(h.name);
+
 const KIND_LABEL: Record<SearchEntry["kind"], string> = { app: "Application", folder: "Folder", file: "File" };
 
 // System icons by path, kept for the whole session (the backend caches too).
@@ -26,6 +29,8 @@ export function Spotlight() {
   const [hits, setHits] = useState<SearchEntry[]>([]);
   const [sel, setSel] = useState(0);
   const [error, setError] = useState("");
+  // DeskFolio installed here: PDFs get an "Open in DeskFolio" action.
+  const [folio, setFolio] = useState(false);
   const [, setIconTick] = useState(0);
   const input = useRef<HTMLInputElement>(null);
   const win = getCurrentWindow();
@@ -36,7 +41,14 @@ export function Spotlight() {
 
   // Focus and select on every show; hide when focus leaves.
   useEffect(() => {
+    const checkFolio = () =>
+      api
+        .desklabTools()
+        .then((t) => setFolio(t.some((x) => x.id === "deskfolio" && x.installed)))
+        .catch(() => setFolio(false));
+    void checkFolio();
     const unShown = listen("spotlight-shown", () => {
+      void checkFolio();
       setError("");
       input.current?.focus();
       input.current?.select();
@@ -80,10 +92,11 @@ export function Spotlight() {
     };
   }, [query]);
 
-  async function open(hit: SearchEntry | undefined, reveal: boolean) {
+  async function open(hit: SearchEntry | undefined, reveal: boolean, inFolio = false) {
     if (!hit) return;
     try {
-      if (reveal) await api.revealFile(hit.path);
+      if (inFolio) await api.openTool("deskfolio", hit.path);
+      else if (reveal) await api.revealFile(hit.path);
       else await api.launch(hit.path);
       hide();
     } catch (e) {
@@ -104,7 +117,8 @@ export function Spotlight() {
       setSel((s) => Math.max(s - 1, 0));
     } else if (e.key === "Enter") {
       e.preventDefault();
-      void open(hits[sel], e.ctrlKey || e.metaKey);
+      const hit = hits[sel];
+      void open(hit, e.ctrlKey || e.metaKey, e.altKey && folio && isPdf(hit));
     }
   }
 
@@ -147,6 +161,18 @@ export function Spotlight() {
                 <span className="spot-name">{h.name}</span>
                 <span className="spot-path">{h.kind === "app" ? KIND_LABEL.app : shortPath(parentDir(h.path))}</span>
               </span>
+              {i === sel && folio && isPdf(h) && (
+                <button
+                  className="spot-action"
+                  title="Alt+Enter"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    void open(h, false, true);
+                  }}
+                >
+                  Open in DeskFolio
+                </button>
+              )}
               {i === sel && <span className="spot-hint">{h.kind === "app" ? "Open" : "Open  ·  Ctrl+Enter show"}</span>}
             </div>
           ))}
