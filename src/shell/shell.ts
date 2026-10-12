@@ -3,6 +3,7 @@
 // Same file in DeskZero, DeskMedic and DeskFolio.
 
 import { getCurrentWebview } from "@tauri-apps/api/webview";
+import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { useSyncExternalStore } from "react";
 
@@ -101,7 +102,8 @@ export function editCommand(what: "cut" | "copy" | "selectAll" | "undo" | "redo"
 export async function pasteText() {
   const el = editable();
   if (!el) return;
-  const text = await navigator.clipboard.readText();
+  // Read through the app, not the browser: no "allow clipboard?" prompt.
+  const text = await readText();
   el.focus();
   document.execCommand("insertText", false, text);
 }
