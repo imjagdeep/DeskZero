@@ -1,6 +1,7 @@
 import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { FolderField, PageHeader, pickFolder } from "../components/Common";
+import { DeskLabTools } from "../components/DeskLab";
 import { api } from "../lib/api";
 import { refreshConfig, refreshStatus, toast, toastError, useConfig } from "../lib/store";
 import type { ConflictPolicy, FinderInfo, Settings as S, Theme } from "../lib/types";
@@ -228,11 +229,7 @@ function AboutSection({ settings: s, save, dataDir }: SectionProps & { dataDir: 
         <button className="link" onClick={() => api.openFolder(dataDir).catch(toastError)}>{dataDir}</button>.
       </p>
       <div className="more-tools">
-        <div className="muted small">More free tools by the same developer</div>
-        <button className="tool-link" onClick={() => api.openLink("deskmedic").catch(toastError)}>
-          <strong>DeskMedic</strong>
-          <span className="muted small">Windows helpdesk toolkit: disk map, safe cleanup, disk fixes and one-click repairs.</span>
-        </button>
+        <DeskLabTools own="deskzero" />
         <div className="muted small made-by">
           Made by Jagdeep Sandhu ·{" "}
           <button className="link" onClick={() => api.openLink("developer").catch(toastError)}>github.com/imjagdeep</button>

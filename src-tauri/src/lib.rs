@@ -1,6 +1,7 @@
 //! DeskZero desktop shell: window, tray and commands over sf-engine.
 
 mod commands;
+mod desklab;
 mod finder;
 mod icons;
 mod organizer;
@@ -178,6 +179,8 @@ pub fn run() {
             commands::platform,
             commands::take_startup_paths,
             commands::open_link,
+            commands::desklab_tools,
+            commands::open_tool,
             commands::notify_update,
             commands::plan_watch_folder,
         ])

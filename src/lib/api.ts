@@ -19,6 +19,12 @@ import type {
   Status,
 } from "./types";
 
+export type LabToolId = "deskzero" | "deskmedic" | "deskfolio";
+export interface LabTool {
+  id: LabToolId;
+  installed: boolean;
+}
+
 export const api = {
   getConfig: () => invoke<AppConfig>("get_config"),
   saveSettings: (settings: Settings) => invoke<void>("save_settings", { settings }),
@@ -54,7 +60,11 @@ export const api = {
   launch: (path: string) => invoke<void>("launch", { path }),
   platform: () => invoke<string>("platform"),
   takeStartupPaths: () => invoke<string[]>("take_startup_paths"),
-  openLink: (id: "developer" | "deskzero" | "deskmedic") => invoke<void>("open_link", { id }),
+  openLink: (id: "developer" | LabToolId) => invoke<void>("open_link", { id }),
+  /** The other DeskLab tools and whether each is installed here. */
+  desklabTools: () => invoke<LabTool[]>("desklab_tools"),
+  /** Start an installed DeskLab tool, optionally with a file for it to open. */
+  openTool: (id: LabToolId, file?: string) => invoke<void>("open_tool", { id, file: file ?? null }),
   notifyUpdate: (version: string) => invoke<void>("notify_update", { version }),
   openFolder: (path: string) => invoke<void>("open_folder", { path }),
   revealFile: (path: string) => invoke<void>("reveal_file", { path }),
