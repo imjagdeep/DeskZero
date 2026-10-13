@@ -178,3 +178,15 @@
   .menu-pop, .palette { animation: none; }
   .nav-item:active:not(:disabled) { transform: none; }
 }
+
+/* ---------- slim top row (☰ menu, app name, page): same frame as DeskFolio ---------- */
+.app-top { display: flex; align-items: center; gap: 8px; height: 38px; flex: none; padding: 0 10px 0 4px; background: var(--sidebar); border-bottom: 0.5px solid var(--sep); }
+.app-top > .menubar.compact { flex: none; display: flex; align-items: center; padding: 0; border: none; background: none; height: auto; }
+.app-top .menu-burger { width: 32px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; }
+.app-top-logo { width: 18px; height: 18px; flex: none; margin-left: 4px; }
+.app-top-name { font-weight: 600; font-size: 13px; }
+.app-top-sep { color: var(--text-2); opacity: 0.6; }
+.app-top-title { font-size: 13px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.app-top-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
+.menu-back .menu-label { font-weight: 600; }
+.menu-back .menu-check { font-size: 15px; }

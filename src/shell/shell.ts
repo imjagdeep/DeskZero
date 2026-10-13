@@ -41,7 +41,8 @@ function writePref(key: string, value: string) {
 
 // ---------- compact sidebar (icons only) ----------
 const COMPACT_KEY = "desklab-sidebar-compact";
-const compactStore = store(readPref(COMPACT_KEY) === "1");
+// Icons only unless someone chose the full sidebar (Ctrl+B).
+const compactStore = store(readPref(COMPACT_KEY) !== "0");
 export const useCompactSidebar = () => useSyncExternalStore(compactStore.subscribe, compactStore.get);
 export const isCompactSidebar = () => compactStore.get();
 export function setCompactSidebar(on: boolean) {

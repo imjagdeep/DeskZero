@@ -1,11 +1,12 @@
 // The in-window menu bar (File, Edit, View, Help) for Windows and Linux;
 // on a Mac the same menus go into the system menu bar instead. Handles the
-// keyboard shortcuts too. Same file in DeskZero, DeskMedic and DeskFolio.
+// keyboard shortcuts too. `compact` shows one ☰ button instead (open = -1 is
+// the list of menus, open = i that menu). Same file in every DeskLab app.
 
 import { useEffect, useRef, useState } from "react";
 import { accelText, isCmd, isMac, isSub, matches, allCommands, runCmd, setNativeMenu, type Entry, type MenuDef } from "./menu";
 
-export function MenuBar({ appName, menus, onError }: { appName: string; menus: MenuDef[]; onError: (e: unknown) => void }) {
+export function MenuBar({ appName, menus, onError, compact = false }: { appName: string; menus: MenuDef[]; onError: (e: unknown) => void; compact?: boolean }) {
   const [open, setOpen] = useState<number | null>(null);
   const [hot, setHot] = useState(-1);
   const bar = useRef<HTMLDivElement>(null);
@@ -80,6 +81,21 @@ export function MenuBar({ appName, menus, onError }: { appName: string; menus: M
   // Arrow keys, Enter and Esc while a menu is open (focus stays where it was).
   useEffect(() => {
     if (open === null) return;
+    if (open === -1) {
+      const onTop = (e: KeyboardEvent) => {
+        if (e.key === "Escape") setOpen(null);
+        else if (e.key === "ArrowDown") setHot((hot + 1) % menus.length);
+        else if (e.key === "ArrowUp") setHot((hot - 1 + menus.length) % menus.length);
+        else if ((e.key === "Enter" || e.key === "ArrowRight") && hot >= 0) {
+          setOpen(hot);
+          setHot(-1);
+        } else return;
+        e.preventDefault();
+        e.stopImmediatePropagation();
+      };
+      window.addEventListener("keydown", onTop, true);
+      return () => window.removeEventListener("keydown", onTop, true);
+    }
     const items = menus[open].items;
     const pickable = (e: Entry) => isCmd(e) && (!e.enabled || e.enabled());
     const onKey = (e: KeyboardEvent) => {
@@ -116,6 +132,57 @@ export function MenuBar({ appName, menus, onError }: { appName: string; menus: M
 
   if (isMac) return null;
 
+  if (compact) {
+    return (
+      <div className="menubar compact" ref={bar} role="menubar">
+        <div className="menubar-slot">
+          <button
+            className={open !== null ? "menubar-item menu-burger open" : "menubar-item menu-burger"}
+            role="menuitem"
+            aria-haspopup="menu"
+            aria-expanded={open !== null}
+            aria-label="Menu"
+            title="Menu (Alt)"
+            onMouseDown={(e) => {
+              e.preventDefault();
+              setOpen(open === null ? -1 : null);
+              setHot(-1);
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+              <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+          </button>
+          {open === -1 && (
+            <div className="menu-pop" role="menu">
+              {menus.map((m, i) => (
+                <button
+                  key={m.label}
+                  className={hot === i ? "menu-row hot" : "menu-row"}
+                  role="menuitem"
+                  aria-haspopup="menu"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onMouseEnter={() => setHot(i)}
+                  onClick={() => {
+                    setOpen(i);
+                    setHot(-1);
+                  }}
+                >
+                  <span className="menu-check" />
+                  <span className="menu-label">{m.label}</span>
+                  <span className="menu-chev">›</span>
+                </button>
+              ))}
+            </div>
+          )}
+          {open !== null && open >= 0 && (
+            <MenuList items={menus[open].items} hot={hot} setHot={setHot} close={() => setOpen(null)} onError={onError} title={menus[open].label} onBack={() => (setOpen(-1), setHot(-1))} />
+          )}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="menubar" ref={bar} role="menubar">
       {menus.map((m, i) => (
@@ -149,6 +216,8 @@ function MenuList({
   close,
   onError,
   sub,
+  title,
+  onBack,
 }: {
   items: Entry[];
   hot: number;
@@ -156,10 +225,19 @@ function MenuList({
   close: () => void;
   onError: (e: unknown) => void;
   sub?: boolean;
+  /** Compact menu: the menu's name with a way back to the list of menus. */
+  title?: string;
+  onBack?: () => void;
 }) {
   const [subOpen, setSubOpen] = useState(-1);
   return (
     <div className={sub ? "menu-pop menu-sub" : "menu-pop"} role="menu">
+      {onBack && (
+        <button className="menu-row menu-back" onMouseDown={(e) => e.preventDefault()} onClick={onBack}>
+          <span className="menu-check">‹</span>
+          <span className="menu-label">{title}</span>
+        </button>
+      )}
       {items.map((e, i) => {
         if (e === "-") return <div key={`sep${i}`} className="menu-sep" role="separator" />;
         if (isSub(e))
