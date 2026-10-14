@@ -138,7 +138,8 @@
 .about-card .modal-actions { align-self: stretch; }
 
 /* ---------- Keyboard shortcuts ---------- */
-.shortcuts-card { width: min(680px, 94vw); }
+.shortcuts-card { width: min(680px, 94vw); overflow: hidden; }
+.shortcuts-card .shortcut-cols { flex: 1 1 auto; min-height: 0; overflow-y: auto; padding-right: 4px; }
 .shortcut-cols { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 6px 26px; }
 .shortcut-cols h3 { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-3); margin: 10px 0 4px; }
 .shortcut-row { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 4px 0; border-bottom: 0.5px solid var(--sep); }
@@ -190,3 +191,9 @@
 .app-top-end { margin-left: auto; display: flex; align-items: center; gap: 6px; }
 .menu-back .menu-label { font-weight: 600; }
 .menu-back .menu-check { font-size: 15px; }
+
+/* Pages sit in the middle of the window, like DeskFolio's, not against the sidebar. */
+.content > .page { margin-left: auto; margin-right: auto; }
+/* The top row already shows the app's icon and name. */
+.app-top ~ .app .sidebar .brand-logo,
+.app-top ~ .app .sidebar .brand-name { display: none; }
