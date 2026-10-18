@@ -342,6 +342,13 @@ pub struct Settings {
     /// Windows: "Organize with DeskZero" in the right-click menu.
     #[serde(default)]
     pub context_menu: bool,
+    /// Key combination that opens the universal search, e.g.
+    /// "Control+Shift+Space". None = the default; "" = turned off.
+    #[serde(default)]
+    pub search_shortcut: Option<String>,
+    /// Key combination that organizes everything waiting. Same rules.
+    #[serde(default)]
+    pub organize_shortcut: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -386,6 +393,8 @@ impl Default for Settings {
             check_updates_weekly: false,
             auto_update: true,
             context_menu: false,
+            search_shortcut: None,
+            organize_shortcut: None,
         }
     }
 }

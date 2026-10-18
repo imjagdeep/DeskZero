@@ -4,6 +4,7 @@ mod commands;
 mod desklab;
 mod finder;
 mod icons;
+mod keys;
 mod organizer;
 mod shell;
 mod state;
@@ -11,23 +12,7 @@ mod tray;
 
 use state::AppState;
 use tauri::{AppHandle, Emitter, Manager, WindowEvent};
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
-
-/// Cmd on macOS, Ctrl elsewhere.
-#[cfg(target_os = "macos")]
-const PRIMARY: Modifiers = Modifiers::SUPER;
-#[cfg(not(target_os = "macos"))]
-const PRIMARY: Modifiers = Modifiers::CONTROL;
-
-/// Ctrl/Cmd + Shift + Space: universal search.
-fn search_shortcut() -> Shortcut {
-    Shortcut::new(Some(PRIMARY | Modifiers::SHIFT), Code::Space)
-}
-
-/// Ctrl/Cmd + Alt + O: organize everything waiting.
-fn organize_shortcut() -> Shortcut {
-    Shortcut::new(Some(PRIMARY | Modifiers::ALT), Code::KeyO)
-}
+use tauri_plugin_global_shortcut::ShortcutState;
 
 /// Files handed over by the right-click menu (or a second launch).
 fn organize_from_args(app: &AppHandle, args: &[String]) {
@@ -72,11 +57,14 @@ pub fn run() {
                     if event.state() != ShortcutState::Pressed {
                         return;
                     }
-                    if shortcut == &search_shortcut() {
-                        finder::toggle(app);
-                    } else if shortcut == &organize_shortcut() {
-                        tray::show_main(app);
-                        let _ = app.emit("organize-now", ());
+                    // Which one is the user's choice (keys.rs).
+                    match app.state::<keys::Keys>().action_of(shortcut) {
+                        Some(keys::Action::Search) => finder::toggle(app),
+                        Some(keys::Action::Organize) => {
+                            tray::show_main(app);
+                            let _ = app.emit("organize-now", ());
+                        }
+                        None => {}
                     }
                 })
                 .build(),
@@ -116,11 +104,11 @@ pub fn run() {
             app.manage(icons::IconCache::default());
             finder::start(app.handle());
 
-            for sc in [search_shortcut(), organize_shortcut()] {
-                if let Err(e) = app.global_shortcut().register(sc) {
-                    // Another app owns the key: everything else still works.
-                    tracing::warn!("could not register shortcut {sc:?}: {e}");
-                }
+            // Another app owning a key only costs that shortcut.
+            app.manage(keys::Keys::default());
+            {
+                let settings = app.state::<AppState>().lock().cfg.settings.clone();
+                keys::register_from_settings(app.handle(), &app.state::<keys::Keys>(), &settings);
             }
 
             tray::build(app.handle())?;

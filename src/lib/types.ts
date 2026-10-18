@@ -57,6 +57,10 @@ export interface Settings {
   check_updates_weekly: boolean;
   auto_update: boolean;
   context_menu: boolean;
+  /** null = default (⌘/Ctrl+Shift+Space), "" = off */
+  search_shortcut: string | null;
+  /** null = default (⌘/Ctrl+Alt+O), "" = off */
+  organize_shortcut: string | null;
 }
 
 export type RuleKind = "filename" | "custom" | "extension";

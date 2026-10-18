@@ -421,7 +421,11 @@ html.spot-window, html.spot-window body, html.spot-window #root { background: tr
 /* settings extras */
 .shortcut-list { display: flex; flex-direction: column; gap: 6px; padding: 10px 0 2px; border-top: 0.5px solid var(--sep); }
 .shortcut-list div { display: flex; align-items: center; gap: 4px; }
-.shortcut-list .muted { margin-left: 10px; }
+.shortcut-list .shortcut-row { display: grid; grid-template-columns: minmax(150px, 1fr) auto auto; align-items: center; gap: 12px; min-height: 30px; }
+.shortcut-name { color: var(--text-1, inherit); }
+.shortcut-keys { display: flex; align-items: center; gap: 4px; justify-self: start; }
+.shortcut-keys > span { display: inline-flex; align-items: center; gap: 4px; }
+.shortcut-actions { display: flex; gap: 2px; justify-self: end; }
 kbd { font: 11px ui-monospace, Menlo, Consolas, monospace; padding: 2px 6px; border-radius: 5px; background: var(--control); box-shadow: var(--shadow-sm); }
 .about-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 4px 0 10px; }
 .about-title { font-weight: 600; }
