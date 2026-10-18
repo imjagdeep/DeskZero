@@ -124,25 +124,8 @@ fn tray_image() -> Option<tauri::image::Image<'static>> {
     }
 }
 
-/// macOS: in the Dock only while the window is open; otherwise DeskZero
-/// lives in the menu bar alone, like other background utilities.
-#[cfg(target_os = "macos")]
-pub fn set_in_dock(app: &AppHandle, visible: bool) {
-    let policy = if visible {
-        tauri::ActivationPolicy::Regular
-    } else {
-        tauri::ActivationPolicy::Accessory
-    };
-    if let Err(e) = app.set_activation_policy(policy) {
-        tracing::warn!("could not change the Dock icon: {e}");
-    }
-}
-
-#[cfg(not(target_os = "macos"))]
-pub fn set_in_dock(_app: &AppHandle, _visible: bool) {}
 
 pub fn show_main(app: &AppHandle) {
-    set_in_dock(app, true);
     if let Some(w) = app.get_webview_window("main") {
         let _ = w.unminimize();
         let _ = w.show();

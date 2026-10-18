@@ -128,11 +128,9 @@ pub fn run() {
             });
 
             let has_paths = !app.state::<AppState>().lock().startup_paths.is_empty();
+            // Started hidden (e.g. at login): menu bar / tray only.
             if !start_minimized || has_paths {
                 tray::show_main(app.handle());
-            } else {
-                // Started hidden (e.g. at login): menu bar only on macOS.
-                tray::set_in_dock(app.handle(), false);
             }
             Ok(())
         })
@@ -141,9 +139,6 @@ pub fn run() {
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 let _ = window.hide();
-                if window.label() == "main" {
-                    tray::set_in_dock(window.app_handle(), false);
-                }
             }
         })
         .invoke_handler(tauri::generate_handler![
