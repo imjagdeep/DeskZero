@@ -90,7 +90,11 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
             }
         });
     match tray_image() {
-        Some(icon) => builder = builder.icon(icon),
+        Some(icon) => {
+            builder = builder
+                .icon(icon)
+                .icon_as_template(cfg!(target_os = "macos"))
+        }
         None => {
             if let Some(icon) = app.default_window_icon() {
                 builder = builder.icon(icon.clone());
@@ -103,10 +107,12 @@ pub fn build(app: &AppHandle) -> tauri::Result<()> {
 }
 
 /// The small icon drawn for the tray, not the 256 px app icon shrunk by the
-/// system: the taskbar-tuned 32 px, or 64 px for the macOS menu bar (2x).
+/// system: the taskbar-tuned 32 px, or a one-colour glyph for the macOS menu bar.
 fn tray_image() -> Option<tauri::image::Image<'static>> {
+    // macOS: a one-colour "template" glyph the menu bar tints itself, like
+    // the system's own icons (black shapes on transparent).
     #[cfg(target_os = "macos")]
-    let bytes: &[u8] = include_bytes!("../icons/64x64.png");
+    let bytes: &[u8] = include_bytes!("../icons/tray-template.png");
     #[cfg(not(target_os = "macos"))]
     let bytes: &[u8] = include_bytes!("../icons/32x32.png");
     match tauri::image::Image::from_bytes(bytes) {

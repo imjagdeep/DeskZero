@@ -2,6 +2,7 @@ import { listen } from "@tauri-apps/api/event";
 import { useEffect, useState } from "react";
 import { FolderField, PageHeader, pickFolder } from "../components/Common";
 import { DeskLabTools } from "../components/DeskLab";
+import { ShortcutField } from "../components/ShortcutField";
 import { api } from "../lib/api";
 import { refreshConfig, refreshStatus, toast, toastError, useConfig } from "../lib/store";
 import type { ConflictPolicy, FinderInfo, Settings as S, Theme } from "../lib/types";
@@ -16,7 +17,7 @@ export function Settings() {
   }, []);
   if (!cfg) return null;
   const s = cfg.settings;
-  const mod = os === "macos" ? "⌘" : "Ctrl";
+  const mac = os === "macos";
 
   async function save(patch: Partial<S>): Promise<boolean> {
     try {
@@ -62,8 +63,21 @@ export function Settings() {
           </label>
         )}
         <div className="shortcut-list">
-          <div><kbd>{mod}</kbd>+<kbd>Shift</kbd>+<kbd>Space</kbd><span className="muted">Universal search</span></div>
-          <div><kbd>{mod}</kbd>+<kbd>{os === "macos" ? "⌥" : "Alt"}</kbd>+<kbd>O</kbd><span className="muted">Organize waiting files</span></div>
+          <ShortcutField
+            label="Universal search"
+            value={s.search_shortcut}
+            fallback="CommandOrControl+Shift+Space"
+            mac={mac}
+            onSave={(v) => save({ search_shortcut: v }).then((ok) => (ok && toast("Shortcut saved"), ok))}
+          />
+          <ShortcutField
+            label="Organize waiting files"
+            value={s.organize_shortcut}
+            fallback="CommandOrControl+Alt+KeyO"
+            mac={mac}
+            onSave={(v) => save({ organize_shortcut: v }).then((ok) => (ok && toast("Shortcut saved"), ok))}
+          />
+          <div className="muted small">Works anywhere, even when DeskZero is in the {mac ? "menu bar" : "tray"}. Keys the system or another app already uses can't be taken.</div>
         </div>
       </section>
 

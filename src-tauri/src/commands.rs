@@ -54,13 +54,18 @@ pub fn save_settings(
         std::fs::create_dir_all(sf).map_err(|e| format!("cannot create {}: {e}", sf.display()))?;
     }
     apply_autostart(&app, settings.start_with_system)?;
-    let (menu_was, roots_were) = {
+    let (menu_was, roots_were, keys_were) = {
         let g = state.lock();
         (
             g.cfg.settings.context_menu,
             g.cfg.settings.search_roots.clone(),
+            (
+                g.cfg.settings.search_shortcut.clone(),
+                g.cfg.settings.organize_shortcut.clone(),
+            ),
         )
     };
+    apply_shortcuts(&app, &keys_were, &settings)?;
     if menu_was != settings.context_menu {
         crate::shell::set_context_menu(settings.context_menu)?;
     }
@@ -78,6 +83,26 @@ pub fn save_settings(
         crate::finder::rebuild(&app);
     }
     let _ = app.emit("pending-changed", ());
+    Ok(())
+}
+
+/// Re-register a shortcut the user changed (refused if the keys are taken
+/// or not a usable combination; the old one then stays).
+fn apply_shortcuts(
+    app: &AppHandle,
+    before: &(Option<String>, Option<String>),
+    s: &Settings,
+) -> CmdResult<()> {
+    use crate::keys::{self, Action};
+    let k = app.state::<keys::Keys>();
+    if before.0 != s.search_shortcut {
+        let sc = keys::parse(s.search_shortcut.as_deref(), keys::DEFAULT_SEARCH)?;
+        keys::set(app, &k, Action::Search, sc)?;
+    }
+    if before.1 != s.organize_shortcut {
+        let sc = keys::parse(s.organize_shortcut.as_deref(), keys::DEFAULT_ORGANIZE)?;
+        keys::set(app, &k, Action::Organize, sc)?;
+    }
     Ok(())
 }
 
