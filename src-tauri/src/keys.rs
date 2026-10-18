@@ -50,11 +50,16 @@ pub fn parse(setting: Option<&str>, default: &str) -> Result<Option<Shortcut>, S
     if text.is_empty() {
         return Ok(None);
     }
-    let sc = Shortcut::from_str(text).map_err(|e| format!("\"{text}\" isn't a key combination DeskZero can use ({e})"))?;
-    let key = text.rsplit('+').next().unwrap_or("").trim().to_ascii_uppercase();
-    let function_key = key.len() >= 2
-        && key.starts_with('F')
-        && key[1..].chars().all(|c| c.is_ascii_digit());
+    let sc = Shortcut::from_str(text)
+        .map_err(|e| format!("\"{text}\" isn't a key combination DeskZero can use ({e})"))?;
+    let key = text
+        .rsplit('+')
+        .next()
+        .unwrap_or("")
+        .trim()
+        .to_ascii_uppercase();
+    let function_key =
+        key.len() >= 2 && key.starts_with('F') && key[1..].chars().all(|c| c.is_ascii_digit());
     if !text.contains('+') && !function_key {
         return Err("add Ctrl, Alt, Shift or ⌘ so normal typing isn't taken".into());
     }
@@ -63,7 +68,12 @@ pub fn parse(setting: Option<&str>, default: &str) -> Result<Option<Shortcut>, S
 
 /// Register `wanted` for `action` in place of what it had. If the system or
 /// another app already owns the keys, the old shortcut stays.
-pub fn set(app: &AppHandle, keys: &Keys, action: Action, wanted: Option<Shortcut>) -> Result<(), String> {
+pub fn set(
+    app: &AppHandle,
+    keys: &Keys,
+    action: Action,
+    wanted: Option<Shortcut>,
+) -> Result<(), String> {
     let gs = app.global_shortcut();
     let mut slot = keys.slot(action).lock().unwrap_or_else(|p| p.into_inner());
     if *slot == wanted {
@@ -74,7 +84,8 @@ pub fn set(app: &AppHandle, keys: &Keys, action: Action, wanted: Option<Shortcut
             Action::Search => Action::Organize,
             Action::Organize => Action::Search,
         };
-        let taken_by_other = *keys.slot(other).lock().unwrap_or_else(|p| p.into_inner()) == Some(new);
+        let taken_by_other =
+            *keys.slot(other).lock().unwrap_or_else(|p| p.into_inner()) == Some(new);
         if taken_by_other {
             return Err("the other DeskZero shortcut already uses these keys".into());
         }
@@ -93,7 +104,9 @@ pub fn set(app: &AppHandle, keys: &Keys, action: Action, wanted: Option<Shortcut
                     *slot = None;
                 }
             }
-            return Err(format!("these keys are already used by the system or another app ({e})"));
+            return Err(format!(
+                "these keys are already used by the system or another app ({e})"
+            ));
         }
     }
     *slot = wanted;
@@ -105,7 +118,11 @@ pub fn set(app: &AppHandle, keys: &Keys, action: Action, wanted: Option<Shortcut
 pub fn register_from_settings(app: &AppHandle, keys: &Keys, s: &sf_engine::Settings) {
     for (action, setting, default) in [
         (Action::Search, s.search_shortcut.as_deref(), DEFAULT_SEARCH),
-        (Action::Organize, s.organize_shortcut.as_deref(), DEFAULT_ORGANIZE),
+        (
+            Action::Organize,
+            s.organize_shortcut.as_deref(),
+            DEFAULT_ORGANIZE,
+        ),
     ] {
         let result = parse(setting, default).and_then(|sc| set(app, keys, action, sc));
         if let Err(e) = result {
@@ -123,8 +140,12 @@ mod tests {
         assert!(parse(None, DEFAULT_SEARCH).unwrap().is_some());
         assert!(parse(None, DEFAULT_ORGANIZE).unwrap().is_some());
         assert!(parse(Some(""), DEFAULT_SEARCH).unwrap().is_none());
-        assert!(parse(Some("Control+Alt+KeyK"), DEFAULT_SEARCH).unwrap().is_some());
-        assert!(parse(Some("Super+Shift+Digit2"), DEFAULT_SEARCH).unwrap().is_some());
+        assert!(parse(Some("Control+Alt+KeyK"), DEFAULT_SEARCH)
+            .unwrap()
+            .is_some());
+        assert!(parse(Some("Super+Shift+Digit2"), DEFAULT_SEARCH)
+            .unwrap()
+            .is_some());
         assert!(parse(Some("F9"), DEFAULT_SEARCH).unwrap().is_some());
     }
 
