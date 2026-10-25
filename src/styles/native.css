@@ -95,7 +95,7 @@
 :root[data-os="windows"] .card { padding: 14px 16px; }
 :root[data-os="windows"] .check { border-top-color: color-mix(in srgb, var(--text) 8%, transparent); padding: 12px 0; }
 /* Buttons: 4px corners, a thin border, solid accent for the main one. */
-:root[data-os="windows"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .chip, .segmented button)) {
+:root[data-os="windows"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .chip, .segmented button, .menu-row)) {
   border-radius: 4px;
   box-shadow: none;
   border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
@@ -169,7 +169,7 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 1px 3px 1px rgba(0, 0, 0, 0.07), 0 2px 6px 2px rgba(0, 0, 0, 0.03);
 }
 /* Flat buttons; the main one is filled with the accent ("suggested action"). */
-:root[data-os="linux"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .segmented button)) {
+:root[data-os="linux"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .segmented button, .menu-row)) {
   border-radius: 6px;
   box-shadow: none;
   background: color-mix(in srgb, var(--text) 10%, transparent);
@@ -201,3 +201,37 @@
 :root[data-os="linux"] .modal-backdrop { align-items: center; padding-top: 0; }
 :root[data-os="linux"] .modal { border-radius: 14px; }
 :root[data-os="linux"] .modal > h2:first-child { text-align: center; }
+
+/* ---------- watch folders: one card per folder ---------- */
+.watch-list { display: flex; flex-direction: column; gap: 6px; margin: 14px 0; }
+.watch-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px 10px 14px;
+  background: var(--group);
+  border: 0.5px solid var(--group-border);
+  border-radius: var(--radius);
+}
+.watch-card.off .watch-icon, .watch-card.off .watch-text { opacity: 0.55; }
+.watch-icon { width: 34px; height: 34px; border-radius: 8px; display: flex; align-items: center; justify-content: center; color: var(--folder); background: color-mix(in srgb, var(--folder) 16%, transparent); }
+.watch-text { display: flex; flex-direction: column; min-width: 0; }
+.watch-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-path { font-size: 12px; color: var(--text-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.watch-state { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--text-2); white-space: nowrap; }
+.watch-state.on { color: var(--green); }
+.watch-state.on .dot { background: var(--green); box-shadow: 0 0 0 3px var(--green-soft); }
+button.watch-more { width: 30px; padding: 0; display: inline-flex; align-items: center; justify-content: center; background: none; box-shadow: none; color: var(--text-2); }
+button.watch-more:hover:not(:disabled) { background: var(--hover); filter: none; }
+.watch-how .list-row > :first-child { flex: 1; }
+:root[data-os="windows"] .watch-card { background: color-mix(in srgb, var(--control) 75%, var(--window)); border: 1px solid color-mix(in srgb, var(--text) 8%, transparent); border-radius: 6px; padding: 12px 12px 12px 16px; }
+:root[data-os="windows"] :is(.page, .modal) button.watch-more { border: none; }
+:root[data-os="linux"] .watch-list { gap: 0; border-radius: 12px; overflow: hidden; box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 1px 3px 1px rgba(0, 0, 0, 0.07); }
+:root[data-os="linux"] .watch-card { border: none; border-radius: 0; background: var(--control); border-top: 1px solid var(--sep); }
+:root[data-os="linux"] .watch-card:first-child { border-top: none; }
+:root[data-os="linux"] :is(.page, .modal) button.watch-more { background: none; }
+@media (max-width: 760px) {
+  .watch-card { grid-template-columns: auto minmax(0, 1fr) auto auto; }
+  .watch-state, .watch-card > button:not(.watch-more) { display: none; }
+}

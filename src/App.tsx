@@ -17,6 +17,7 @@ import { checkAndDownload, dailyCheckDue } from "./lib/updates";
 import { Browse, type Location } from "./pages/Browse";
 import { History } from "./pages/History";
 import { Organizer } from "./pages/Organizer";
+import { BROWSE_EVENT } from "./pages/WatchFolders";
 import { Settings } from "./pages/Settings";
 import { ShellDialogs } from "./shell/Dialogs";
 import { TopBar } from "./shell/TopBar";
@@ -137,6 +138,18 @@ export default function App() {
       })
       .catch(() => undefined);
   }, []);
+
+  // "Show in DeskZero" from other pages (e.g. a watch folder's menu).
+  useEffect(() => {
+    const show = (e: Event) => {
+      const path = (e as CustomEvent<string>).detail;
+      if (typeof path !== "string" || !path) return;
+      goLoc({ path, kind: null });
+      setPage("browse");
+    };
+    window.addEventListener(BROWSE_EVENT, show);
+    return () => window.removeEventListener(BROWSE_EVENT, show);
+  }, [goLoc, setPage]);
 
   const navigate = useCallback(
     (t: NavTarget) => {
