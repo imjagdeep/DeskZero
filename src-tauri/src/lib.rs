@@ -104,6 +104,7 @@ pub fn run() {
             app.manage(finder::Finder::default());
             app.manage(icons::IconCache::default());
             app.manage(commands::ThumbCache::default());
+            app.manage(commands::FileClipboard::default());
             finder::start(app.handle());
 
             // Another app owning a key only costs that shortcut.
@@ -191,6 +192,14 @@ pub fn run() {
             commands::thumbnails,
             commands::drives,
             commands::disk_space,
+            commands::restore_from_trash,
+            commands::remove_empty_folder,
+            commands::cleanup_suggestions,
+            commands::preview_image,
+            commands::preview_text,
+            commands::quick_look,
+            commands::clipboard_set_files,
+            commands::clipboard_get_files,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DeskZero")

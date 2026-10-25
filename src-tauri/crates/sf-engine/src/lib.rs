@@ -6,6 +6,7 @@
 pub mod alive;
 pub mod browse;
 pub mod classify;
+pub mod cleanup;
 pub mod config;
 pub mod duplicates;
 pub mod fileops;

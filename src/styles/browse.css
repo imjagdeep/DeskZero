@@ -377,3 +377,73 @@ input.bz-rename:not([type="checkbox"]) {
 
 .settings-tabs { margin: 4px 0 14px; }
 .settings-tabs button { padding: 0 14px; }
+
+/* ---------- 0.8: drag and drop, preview, clean up ---------- */
+.bz-tile.drop, .bz-row.drop { background: var(--bz-select); box-shadow: 0 0 0 2px var(--bz-select-ring); }
+.bz-drag-ghost {
+  position: fixed;
+  z-index: 40;
+  pointer-events: none;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-size: 12px;
+  font-weight: 600;
+  box-shadow: var(--shadow-sm);
+  white-space: nowrap;
+}
+.bz-dropzone {
+  position: absolute;
+  inset: 8px;
+  z-index: 20;
+  pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--bz-select-ring);
+  border-radius: var(--tile-radius);
+  background: color-mix(in srgb, var(--bz-select) 60%, transparent);
+  color: var(--text);
+  font-weight: 600;
+}
+.browser { position: relative; }
+
+.preview-card { width: min(900px, 94vw); max-height: 88vh; }
+.preview-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 10px; }
+.preview-title { font-weight: 650; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.preview-body {
+  flex: 1;
+  min-height: 200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: auto;
+  border-radius: 8px;
+  background: var(--group);
+}
+.preview-body img { max-width: 100%; max-height: 66vh; object-fit: contain; }
+.preview-body pre {
+  align-self: stretch;
+  width: 100%;
+  margin: 0;
+  padding: 12px 14px;
+  font: 12px/1.5 ui-monospace, "Cascadia Mono", "SF Mono", Menlo, Consolas, monospace;
+  white-space: pre-wrap;
+  word-break: break-word;
+  user-select: text;
+}
+
+.cleanup-card { width: min(680px, 94vw); }
+.cleanup-group { margin-top: 10px; }
+.cleanup-group-head { display: flex; align-items: center; gap: 8px; font-weight: 650; padding: 4px 0; }
+.cleanup-group-head .muted { margin-left: auto; font-weight: 400; }
+.cleanup-row {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto 70px;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 0 3px 22px;
+}
+.cleanup-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.cleanup-size { text-align: right; font-variant-numeric: tabular-nums; }

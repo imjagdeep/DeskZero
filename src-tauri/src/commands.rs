@@ -808,6 +808,102 @@ pub async fn disk_space(path: PathBuf) -> CmdResult<Option<(u64, u64)>> {
     blocking(move || Ok(crate::drives::space(&path))).await
 }
 
+/// Undo of "Move to Trash" (Windows and Linux; macOS says to use Finder).
+#[tauri::command]
+pub async fn restore_from_trash(paths: Vec<PathBuf>) -> CmdResult<usize> {
+    blocking(move || sf_engine::fileops::restore_from_trash(&paths)).await
+}
+
+/// Undo of "New folder": only while it's still empty.
+#[tauri::command]
+pub async fn remove_empty_folder(path: PathBuf) -> CmdResult<()> {
+    blocking(move || {
+        sf_engine::fileops::remove_empty_folder(&path)
+            .map_err(|_| format!("{} isn't empty any more", path.display()))
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn cleanup_suggestions(dir: PathBuf) -> CmdResult<Vec<sf_engine::cleanup::Group>> {
+    blocking(move || sf_engine::cleanup::suggest(&dir).map_err(|e| e.to_string())).await
+}
+
+/// A large picture for the Space-bar preview, as a data URL.
+#[tauri::command]
+pub async fn preview_image(path: PathBuf) -> CmdResult<Option<String>> {
+    use base64::Engine;
+    blocking(move || {
+        let made = sf_engine::thumbs::thumbnail(&path, 1600).map_err(|e| e.to_string())?;
+        Ok(made.map(|(mime, bytes)| {
+            format!(
+                "data:{mime};base64,{}",
+                base64::engine::general_purpose::STANDARD.encode(bytes)
+            )
+        }))
+    })
+    .await
+}
+
+/// The start of a text file for the preview; None for binary files.
+#[tauri::command]
+pub async fn preview_text(path: PathBuf) -> CmdResult<Option<String>> {
+    blocking(move || sf_engine::fileops::text_preview(&path, 200_000).map_err(|e| e.to_string()))
+        .await
+}
+
+/// macOS: the system's own Quick Look window. Other systems use DeskZero's
+/// preview, so this says false there.
+#[tauri::command]
+pub fn quick_look(path: PathBuf) -> CmdResult<bool> {
+    if cfg!(target_os = "macos") {
+        std::process::Command::new("qlmanage")
+            .arg("-p")
+            .arg(&path)
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .map_err(|e| format!("Quick Look didn't open: {e}"))?;
+        return Ok(true);
+    }
+    Ok(false)
+}
+
+/// The system clipboard for files, kept open for the app's lifetime: on
+/// Linux the copied files stay pasteable only while their owner is alive.
+#[derive(Default)]
+pub struct FileClipboard(std::sync::Mutex<Option<arboard::Clipboard>>);
+
+impl FileClipboard {
+    fn with<T>(&self, f: impl FnOnce(&mut arboard::Clipboard) -> CmdResult<T>) -> CmdResult<T> {
+        let mut guard = self.0.lock().map_err(|_| "clipboard is busy".to_string())?;
+        if guard.is_none() {
+            *guard = Some(arboard::Clipboard::new().map_err(|e| format!("no clipboard: {e}"))?);
+        }
+        match guard.as_mut() {
+            Some(cb) => f(cb),
+            None => Err("no clipboard".into()),
+        }
+    }
+}
+
+/// Put files on the system clipboard, so Explorer / Finder can paste them.
+#[tauri::command]
+pub fn clipboard_set_files(clip: State<'_, FileClipboard>, paths: Vec<PathBuf>) -> CmdResult<()> {
+    clip.with(|cb| {
+        cb.set()
+            .file_list(&paths)
+            .map_err(|e| format!("couldn't copy to the clipboard: {e}"))
+    })
+}
+
+/// Files on the system clipboard (copied in Explorer / Finder); empty when
+/// it holds something else.
+#[tauri::command]
+pub fn clipboard_get_files(clip: State<'_, FileClipboard>) -> CmdResult<Vec<PathBuf>> {
+    clip.with(|cb| Ok(cb.get().file_list().unwrap_or_default()))
+}
+
 // ---------- universal search ----------
 
 #[tauri::command]

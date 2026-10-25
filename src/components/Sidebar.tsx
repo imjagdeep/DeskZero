@@ -1,6 +1,6 @@
 import logo from "../assets/logo.png";
 import { useStatus } from "../lib/store";
-import { humanSize } from "../lib/format";
+import { fileName, humanSize } from "../lib/format";
 import type { Drive, Place, PlaceId } from "../lib/types";
 import { SideNav, type NavGroup } from "../shell/SideNav";
 import {
@@ -9,6 +9,7 @@ import {
   DocumentIcon,
   DownloadIcon,
   DriveIcon,
+  FolderIcon,
   FilmIcon,
   ImageIcon,
   MusicIcon,
@@ -74,27 +75,37 @@ const PLACE_ICONS: Record<PlaceId, (p: { size?: number }) => React.ReactElement>
 };
 
 /** A sidebar entry: one of the pages, or a place or drive opened in the browser. */
-export type NavTarget = Page | `place:${PlaceId}` | `drive:${string}`;
+export type NavTarget = Page | `place:${PlaceId}` | `drive:${string}` | `pin:${string}`;
 
 export function Sidebar({
   active,
   places,
   drives,
+  pinned,
   onNavigate,
 }: {
   active: NavTarget;
   places: Place[];
   drives: Drive[];
+  /** Folders pinned from the browser's right-click menu. */
+  pinned: string[];
   onNavigate: (t: NavTarget) => void;
 }) {
   const status = useStatus();
   const watching = status?.watching.length ?? 0;
-  const groups: NavGroup<NavTarget>[] = [
+  const groups: NavGroup<NavTarget>[] = [];
+  if (pinned.length) {
+    groups.push({
+      title: "Pinned",
+      items: pinned.map((p) => ({ page: `pin:${p}` as const, label: fileName(p.replace(/[\\/]+$/, "")) || p, Icon: FolderIcon, hint: p })),
+    });
+  }
+  groups.push(
     {
       title: "Places",
       items: places.map((pl) => ({ page: `place:${pl.id}` as const, label: pl.label, Icon: PLACE_ICONS[pl.id], hint: pl.path })),
     },
-  ];
+  );
   if (drives.length) {
     groups.push({
       title: "Locations",

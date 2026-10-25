@@ -31,6 +31,8 @@ serde_json = "1"
 chrono = "0.4"
 tracing = "0.1"
 base64 = "0.22"
+# Files on the system clipboard (already used by the clipboard plugin).
+arboard = { version = "3", default-features = false }
 
 [target.'cfg(windows)'.dependencies]
 winreg = "0.55"

@@ -833,6 +833,7 @@ dependencies = [
 name = "deskzero"
 version = "0.7.0"
 dependencies = [
+ "arboard",
  "base64 0.22.1",
  "chrono",
  "file_icon_provider",

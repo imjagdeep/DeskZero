@@ -146,8 +146,8 @@ export default function App() {
         const pl = places.find((p) => `place:${p.id}` === t);
         if (pl) goLoc({ path: pl.path, kind: null });
         setPage("browse");
-      } else if (t.startsWith("drive:")) {
-        goLoc({ path: t.slice("drive:".length), kind: null });
+      } else if (t.startsWith("drive:") || t.startsWith("pin:")) {
+        goLoc({ path: t.slice(t.indexOf(":") + 1), kind: null });
         setPage("browse");
       } else setPage(t as Page);
     },
@@ -156,7 +156,8 @@ export default function App() {
   const here = page === "browse" && loc && !loc.kind ? loc.path : null;
   const placeHere = here ? places.find((p) => p.path === here) : undefined;
   const driveHere = here ? drives.find((d) => d.path === here) : undefined;
-  const active: NavTarget = placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
+  const pinHere = here && cfg?.settings.pinned.includes(here) ? here : undefined;
+  const active: NavTarget = pinHere ? `pin:${pinHere}` : placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
   const folderTitle = loc ? fileName(loc.path.replace(/[\\/]+$/, "")) : "";
 
   useEffect(() => {
@@ -188,7 +189,7 @@ export default function App() {
         onError={toastError}
       />
       <div className="app">
-        <Sidebar active={active} places={places} drives={drives} onNavigate={navigate} />
+        <Sidebar active={active} places={places} drives={drives} pinned={cfg?.settings.pinned ?? []} onNavigate={navigate} />
         <main className={page === "browse" ? "content content-browse" : "content"}>
           {page === "browse" && loc && cfg && (
             <Browse

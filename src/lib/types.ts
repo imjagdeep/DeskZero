@@ -67,6 +67,8 @@ export interface Settings {
   thumbnails: boolean;
   folder_sizes: boolean;
   confirm_delete: boolean;
+  /** Folders pinned to the sidebar, in order. */
+  pinned: string[];
 }
 
 export type RuleKind = "filename" | "custom" | "extension";
@@ -225,4 +227,16 @@ export interface Drive {
 export interface Outcome {
   done: string[];
   failed: [string, string][];
+}
+
+export interface CleanItem {
+  path: string;
+  size_bytes: number;
+  reason: string;
+}
+
+export interface CleanGroup {
+  id: "unfinished" | "installers" | "duplicates" | "large";
+  title: string;
+  items: CleanItem[];
 }

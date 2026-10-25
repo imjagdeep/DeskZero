@@ -7,6 +7,7 @@ import { PAGES, type Page } from "./components/Sidebar";
 import { api, type LabTool } from "./lib/api";
 import { openPreview, refreshConfig, refreshStatus, toast, toastError, useConfig, useStatus } from "./lib/store";
 import type { Theme } from "./lib/types";
+import { canUndo, undoLast } from "./lib/undo";
 import { checkAndDownload } from "./lib/updates";
 import { exportRulesFile, importRulesFile } from "./pages/Rules";
 import type { MenuDef } from "./shell/menu";
@@ -101,7 +102,14 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
     const edit: MenuDef = {
       label: "Edit",
       items: [
-        { id: "undo", label: "Undo", accel: "Mod+Z", enabled: textFieldFocused, run: () => editCommand("undo") },
+        {
+          id: "undo",
+          label: "Undo",
+          accel: "Mod+Z",
+          // In a text field: undo typing. Otherwise: the last file action.
+          enabled: () => textFieldFocused() || canUndo(),
+          run: () => (textFieldFocused() ? editCommand("undo") : undoLast()),
+        },
         { id: "redo", label: "Redo", accel: "Mod+Y", native: "redo", hidden: true, run: () => editCommand("redo") },
         "-",
         { id: "cut", label: "Cut", accel: "Mod+X", native: "cut", hidden: true, run: () => editCommand("cut") },
