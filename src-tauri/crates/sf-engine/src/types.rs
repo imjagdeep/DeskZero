@@ -349,6 +349,21 @@ pub struct Settings {
     /// Key combination that organizes everything waiting. Same rules.
     #[serde(default)]
     pub organize_shortcut: Option<String>,
+    /// File browser: the folder it opens on. None = Downloads.
+    #[serde(default)]
+    pub start_folder: Option<PathBuf>,
+    /// File browser: list hidden and system files too.
+    #[serde(default)]
+    pub show_hidden: bool,
+    /// File browser: picture previews on image tiles.
+    #[serde(default = "default_true")]
+    pub thumbnails: bool,
+    /// File browser: total size on folder tiles (walks each folder).
+    #[serde(default = "default_true")]
+    pub folder_sizes: bool,
+    /// File browser: ask before moving files to the Trash / Recycle Bin.
+    #[serde(default = "default_true")]
+    pub confirm_delete: bool,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -395,6 +410,11 @@ impl Default for Settings {
             context_menu: false,
             search_shortcut: None,
             organize_shortcut: None,
+            start_folder: None,
+            show_hidden: false,
+            thumbnails: true,
+            folder_sizes: true,
+            confirm_delete: true,
         }
     }
 }
@@ -427,6 +447,14 @@ mod tests {
         let back: Settings = serde_json::from_str(&json).unwrap();
         assert_eq!(s, back);
         assert_eq!(s.conflict_policy, ConflictPolicy::Rename);
+    }
+
+    #[test]
+    fn settings_from_before_the_file_browser_get_its_defaults() {
+        let old: Settings = serde_json::from_str(r#"{ "version": 1, "theme": "dark" }"#).unwrap();
+        assert_eq!(old.start_folder, None);
+        assert!(!old.show_hidden);
+        assert!(old.thumbnails && old.folder_sizes && old.confirm_delete);
     }
 
     #[test]

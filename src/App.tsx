@@ -7,10 +7,13 @@ import logo from "./assets/logo.png";
 import { Toasts } from "./components/Common";
 import { PreviewModal } from "./components/PreviewModal";
 import { UpdateBanner } from "./components/UpdateBanner";
-import { PAGES, Sidebar, type Page } from "./components/Sidebar";
+import { PAGES, Sidebar, type NavTarget, type Page } from "./components/Sidebar";
 import { api } from "./lib/api";
+import { fileName } from "./lib/format";
 import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
+import type { Drive, Place } from "./lib/types";
 import { checkAndDownload, dailyCheckDue } from "./lib/updates";
+import { Browse, type Location } from "./pages/Browse";
 import { Cleanup } from "./pages/Cleanup";
 import { History } from "./pages/History";
 import { Home } from "./pages/Home";
@@ -23,8 +26,21 @@ import { TopBar } from "./shell/TopBar";
 import { applySavedZoom } from "./shell/shell";
 
 export default function App() {
-  const [page, setPageRaw] = useState<Page>("home");
+  const [page, setPageRaw] = useState<Page>("browse");
   const setPage = useCallback((p: Page) => setPageRaw(p), []);
+  const [places, setPlaces] = useState<Place[]>([]);
+  const [drives, setDrives] = useState<Drive[]>([]);
+  const [platform, setPlatform] = useState("");
+  // Browser history: back/forward walk this list, like a file manager.
+  const [hist, setHist] = useState<{ stack: Location[]; at: number }>({ stack: [], at: -1 });
+  const loc = hist.stack[hist.at] ?? null;
+  const goLoc = useCallback((l: Location) => {
+    setHist((h) => {
+      const cur = h.stack[h.at];
+      if (cur && cur.path === l.path && cur.kind === l.kind) return h;
+      return { stack: [...h.stack.slice(0, h.at + 1), l].slice(-100), at: Math.min(h.at + 1, 99) };
+    });
+  }, []);
   const menus = useAppMenus(setPage);
   const [version, setVersion] = useState("");
   const cfg = useConfig();
@@ -89,18 +105,72 @@ export default function App() {
     };
   }, [autoUpdate]);
 
+  // Open on the folder chosen in Settings, else Downloads (or the first
+  // standard folder this computer has). Waits for the settings to load.
+  const startFolder = cfg ? (cfg.settings.start_folder ?? "") : null;
+  useEffect(() => {
+    if (startFolder === null) return;
+    api
+      .places()
+      .then((list) => {
+        setPlaces(list);
+        const start = startFolder || (list.find((p) => p.id === "downloads") ?? list[0])?.path;
+        if (start) setHist((h) => (h.stack.length ? h : { stack: [{ path: start, kind: null }], at: 0 }));
+      })
+      .catch(toastError);
+  }, [startFolder]);
+
+  // Drives: at start and whenever the window comes back to the front (a USB
+  // stick may have been plugged in meanwhile).
+  useEffect(() => {
+    const load = () => api.drives().then(setDrives).catch(() => undefined);
+    load();
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
+  }, []);
+
+  useEffect(() => {
+    // Each system gets its own look (Finder, File Explorer, GNOME Files).
+    api
+      .platform()
+      .then((os) => {
+        setPlatform(os);
+        document.documentElement.setAttribute("data-os", os);
+      })
+      .catch(() => undefined);
+  }, []);
+
+  const navigate = useCallback(
+    (t: NavTarget) => {
+      if (t.startsWith("place:")) {
+        const pl = places.find((p) => `place:${p.id}` === t);
+        if (pl) goLoc({ path: pl.path, kind: null });
+        setPage("browse");
+      } else if (t.startsWith("drive:")) {
+        goLoc({ path: t.slice("drive:".length), kind: null });
+        setPage("browse");
+      } else setPage(t as Page);
+    },
+    [places, goLoc, setPage],
+  );
+  const here = page === "browse" && loc && !loc.kind ? loc.path : null;
+  const placeHere = here ? places.find((p) => p.path === here) : undefined;
+  const driveHere = here ? drives.find((d) => d.path === here) : undefined;
+  const active: NavTarget = placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
+  const folderTitle = loc ? fileName(loc.path.replace(/[\\/]+$/, "")) : "";
+
   useEffect(() => {
     getVersion().then(setVersion).catch(() => undefined);
     void applySavedZoom().catch(() => undefined);
   }, []);
 
-  // The window title names the page, like any desktop app.
+  // The window title names the page (or folder), like any desktop app.
   useEffect(() => {
-    const where = PAGES.find((p) => p.page === page)?.label ?? "";
+    const where = page === "browse" ? folderTitle : (PAGES.find((p) => p.page === page)?.label ?? "");
     void getCurrentWindow()
-      .setTitle(page === "home" ? "DeskZero" : `${where} — DeskZero`)
+      .setTitle(where ? `${where} — DeskZero` : "DeskZero")
       .catch(() => undefined);
-  }, [page]);
+  }, [page, folderTitle]);
 
   // "system" leaves the attribute off so the CSS media query decides.
   useEffect(() => {
@@ -110,10 +180,28 @@ export default function App() {
 
   return (
     <div className="app-frame">
-      <TopBar appName="DeskZero" logo={logo} title={PAGES.find((p) => p.page === page)?.label} menus={menus} onError={toastError} />
+      <TopBar
+        appName="DeskZero"
+        logo={logo}
+        title={page === "browse" ? folderTitle : PAGES.find((p) => p.page === page)?.label}
+        menus={menus}
+        onError={toastError}
+      />
       <div className="app">
-        <Sidebar page={page} onNavigate={setPage} />
-        <main className="content">
+        <Sidebar active={active} places={places} drives={drives} onNavigate={navigate} />
+        <main className={page === "browse" ? "content content-browse" : "content"}>
+          {page === "browse" && loc && cfg && (
+            <Browse
+              loc={loc}
+              go={goLoc}
+              back={() => setHist((h) => ({ ...h, at: Math.max(0, h.at - 1) }))}
+              forward={() => setHist((h) => ({ ...h, at: Math.min(h.stack.length - 1, h.at + 1) }))}
+              canBack={hist.at > 0}
+              canForward={hist.at < hist.stack.length - 1}
+              platform={platform}
+              settings={cfg.settings}
+            />
+          )}
           {page === "home" && <Home />}
           {page === "watch" && <WatchFolders />}
           {page === "rules" && <Rules />}

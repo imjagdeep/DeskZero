@@ -109,7 +109,8 @@ pub fn storage_overview(root: &Path) -> io::Result<Vec<FolderUsage>> {
     Ok(out)
 }
 
-fn folder_size(dir: &Path) -> (u64, u64) {
+/// Total bytes and file count under `dir`. Symlinks are not followed.
+pub fn folder_size(dir: &Path) -> (u64, u64) {
     let mut bytes = 0;
     let mut files = 0;
     for e in walkdir::WalkDir::new(dir)

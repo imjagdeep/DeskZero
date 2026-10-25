@@ -1,0 +1,275 @@
+//! Everyday file-manager actions for the browser: rename, new folder, copy,
+//! move a folder, and move to the Trash / Recycle Bin. Moving *files* goes
+//! through the planner and mover instead, so it lands in History and can be
+//! undone. Nothing here deletes permanently.
+
+use crate::fsutil::free_target;
+use std::fs;
+use std::io;
+use std::path::{Path, PathBuf};
+
+/// A file or folder name the user typed: not empty, no path separators and
+/// nothing Windows refuses (so a name also works when the folder is synced
+/// to a Windows machine).
+pub fn validate_name(name: &str) -> Result<(), String> {
+    let trimmed = name.trim();
+    if trimmed.is_empty() {
+        return Err("The name can't be empty.".into());
+    }
+    if trimmed == "." || trimmed == ".." {
+        return Err("That name is reserved.".into());
+    }
+    if let Some(c) = name.chars().find(|&c| {
+        matches!(c, '/' | '\\' | ':' | '*' | '?' | '"' | '<' | '>' | '|') || c.is_control()
+    }) {
+        return Err(format!("A name can't contain {c:?}."));
+    }
+    if name.ends_with('.') || name.ends_with(' ') {
+        return Err("A name can't end with a dot or a space.".into());
+    }
+    let stem = trimmed
+        .split('.')
+        .next()
+        .unwrap_or_default()
+        .to_ascii_uppercase();
+    let reserved = ["CON", "PRN", "AUX", "NUL"];
+    let numbered = (stem.starts_with("COM") || stem.starts_with("LPT"))
+        && stem.len() == 4
+        && stem.as_bytes()[3].is_ascii_digit();
+    if reserved.contains(&stem.as_str()) || numbered {
+        return Err(format!("{stem} is a reserved name on Windows."));
+    }
+    Ok(())
+}
+
+fn invalid(msg: String) -> io::Error {
+    io::Error::new(io::ErrorKind::InvalidInput, msg)
+}
+
+/// Rename `path` within its folder. Refuses to replace something that
+/// already has the new name (a case-only change is allowed).
+pub fn rename(path: &Path, new_name: &str) -> io::Result<PathBuf> {
+    validate_name(new_name).map_err(invalid)?;
+    let parent = path
+        .parent()
+        .ok_or_else(|| invalid(format!("{} can't be renamed", path.display())))?;
+    let target = parent.join(new_name);
+    let case_only = path
+        .file_name()
+        .is_some_and(|n| n.to_string_lossy().to_lowercase() == new_name.to_lowercase());
+    if !case_only && fs::symlink_metadata(&target).is_ok() {
+        return Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            format!("\"{new_name}\" already exists here"),
+        ));
+    }
+    fs::rename(path, &target)?;
+    Ok(target)
+}
+
+/// Create a folder named `base` in `dir`, or "base 2", "base 3"… when taken
+/// (Finder and GNOME style; Explorer's "(2)" reads the same).
+pub fn new_folder(dir: &Path, base: &str) -> io::Result<PathBuf> {
+    validate_name(base).map_err(invalid)?;
+    for n in 1..1000 {
+        let name = if n == 1 {
+            base.to_string()
+        } else {
+            format!("{base} {n}")
+        };
+        let path = dir.join(name);
+        match fs::create_dir(&path) {
+            Ok(()) => return Ok(path),
+            Err(e) if e.kind() == io::ErrorKind::AlreadyExists => continue,
+            Err(e) => return Err(e),
+        }
+    }
+    Err(invalid("too many folders with that name".into()))
+}
+
+/// What happened to each item of a copy or move.
+#[derive(Debug, Default, Clone, PartialEq, serde::Serialize)]
+pub struct Outcome {
+    pub done: Vec<PathBuf>,
+    pub failed: Vec<(PathBuf, String)>,
+}
+
+/// Copy files and folders into `dest`. Name clashes (also pasting into the
+/// same folder) get "name (1)". Symlinks inside folders are skipped.
+pub fn copy_into(srcs: &[PathBuf], dest: &Path) -> Outcome {
+    let mut out = Outcome::default();
+    for src in srcs {
+        match copy_one(src, dest) {
+            Ok(p) => out.done.push(p),
+            Err(e) => out.failed.push((src.clone(), e.to_string())),
+        }
+    }
+    out
+}
+
+fn copy_one(src: &Path, dest: &Path) -> io::Result<PathBuf> {
+    let name = src
+        .file_name()
+        .ok_or_else(|| invalid(format!("{} can't be copied", src.display())))?;
+    if src.is_dir() && dest.starts_with(src) {
+        return Err(invalid("a folder can't be copied into itself".into()));
+    }
+    let target = free_target(&dest.join(name), &[])?;
+    if src.is_dir() {
+        copy_dir(src, &target)?;
+    } else {
+        fs::copy(src, &target)?;
+    }
+    Ok(target)
+}
+
+fn copy_dir(src: &Path, target: &Path) -> io::Result<()> {
+    for entry in walkdir::WalkDir::new(src).follow_links(false) {
+        let entry = entry.map_err(io::Error::other)?;
+        let rel = entry
+            .path()
+            .strip_prefix(src)
+            .map_err(|e| invalid(e.to_string()))?;
+        let to = target.join(rel);
+        let ft = entry.file_type();
+        if ft.is_dir() {
+            fs::create_dir_all(&to)?;
+        } else if ft.is_file() {
+            fs::copy(entry.path(), &to)?;
+        }
+    }
+    Ok(())
+}
+
+/// Move folders into `dest` by renaming them. Only within one drive: moving
+/// a folder between drives would mean copy-then-delete, which DeskZero
+/// doesn't do on its own.
+pub fn move_folders_into(srcs: &[PathBuf], dest: &Path) -> Outcome {
+    let mut out = Outcome::default();
+    for src in srcs {
+        let res = (|| {
+            let name = src
+                .file_name()
+                .ok_or_else(|| invalid(format!("{} can't be moved", src.display())))?;
+            if dest.starts_with(src) {
+                return Err(invalid("a folder can't be moved into itself".into()));
+            }
+            if src.parent() == Some(dest) {
+                return Ok(src.clone());
+            }
+            let target = free_target(&dest.join(name), &[])?;
+            fs::rename(src, &target).map_err(|e| {
+                if e.raw_os_error() == Some(if cfg!(windows) { 17 } else { 18 }) {
+                    invalid("folders can't be moved to another drive yet; copy it instead".into())
+                } else {
+                    e
+                }
+            })?;
+            Ok(target)
+        })();
+        match res {
+            Ok(p) => out.done.push(p),
+            Err(e) => out.failed.push((src.clone(), e.to_string())),
+        }
+    }
+    out
+}
+
+/// Move items to the Trash / Recycle Bin, where they can be restored.
+pub fn trash(paths: &[PathBuf]) -> Result<(), String> {
+    if paths.is_empty() {
+        return Ok(());
+    }
+    #[allow(unused_mut)]
+    let mut ctx = trash::TrashContext::default();
+    // macOS: the system call, not scripting Finder, which would ask the
+    // user to let DeskZero control Finder.
+    #[cfg(target_os = "macos")]
+    {
+        use trash::macos::{DeleteMethod, TrashContextExtMacos};
+        ctx.set_delete_method(DeleteMethod::NsFileManager);
+    }
+    ctx.delete_all(paths)
+        .map_err(|e| format!("couldn't move to the Trash: {e}"))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn names_are_checked() {
+        assert!(validate_name("report 2026.pdf").is_ok());
+        assert!(validate_name("  ").is_err());
+        assert!(validate_name("a/b").is_err());
+        assert!(validate_name("what?").is_err());
+        assert!(validate_name("trailing.").is_err());
+        assert!(validate_name("con.txt").is_err());
+        assert!(validate_name("COM1").is_err());
+        assert!(validate_name("console.txt").is_ok());
+    }
+
+    #[test]
+    fn rename_refuses_to_replace_but_allows_case_change() {
+        let tmp = tempfile::tempdir().unwrap();
+        let a = tmp.path().join("a.txt");
+        fs::write(&a, b"a").unwrap();
+        fs::write(tmp.path().join("b.txt"), b"b").unwrap();
+        assert!(rename(&a, "b.txt").is_err());
+        assert_eq!(fs::read(tmp.path().join("b.txt")).unwrap(), b"b");
+        let upper = rename(&a, "A.txt").unwrap();
+        assert!(upper.ends_with("A.txt"));
+        assert!(rename(&upper, "c.txt").is_ok());
+        assert!(tmp.path().join("c.txt").exists());
+    }
+
+    #[test]
+    fn new_folder_counts_up() {
+        let tmp = tempfile::tempdir().unwrap();
+        let one = new_folder(tmp.path(), "New folder").unwrap();
+        let two = new_folder(tmp.path(), "New folder").unwrap();
+        assert!(one.ends_with("New folder"));
+        assert!(two.ends_with("New folder 2"));
+    }
+
+    #[test]
+    fn copy_into_copies_folders_and_avoids_clashes() {
+        let tmp = tempfile::tempdir().unwrap();
+        let src = tmp.path().join("src");
+        fs::create_dir_all(src.join("inner")).unwrap();
+        fs::write(src.join("inner/x.txt"), b"x").unwrap();
+        fs::write(tmp.path().join("f.txt"), b"f").unwrap();
+        let dest = tmp.path().join("dest");
+        fs::create_dir_all(&dest).unwrap();
+
+        let out = copy_into(&[src.clone(), tmp.path().join("f.txt")], &dest);
+        assert!(out.failed.is_empty(), "{:?}", out.failed);
+        assert_eq!(fs::read(dest.join("src/inner/x.txt")).unwrap(), b"x");
+        assert!(dest.join("f.txt").exists());
+        assert!(src.join("inner/x.txt").exists(), "copy keeps the original");
+
+        // Pasting the same file again keeps both.
+        let again = copy_into(&[tmp.path().join("f.txt")], &dest);
+        assert!(again.done[0].ends_with("f (1).txt"));
+
+        // Never into itself.
+        let inside = copy_into(std::slice::from_ref(&src), &src.join("inner"));
+        assert_eq!(inside.failed.len(), 1);
+    }
+
+    #[test]
+    fn move_folders_renames_and_refuses_self_nesting() {
+        let tmp = tempfile::tempdir().unwrap();
+        let a = tmp.path().join("a");
+        let b = tmp.path().join("b");
+        fs::create_dir_all(a.join("deep")).unwrap();
+        fs::create_dir_all(&b).unwrap();
+        let out = move_folders_into(std::slice::from_ref(&a), &b);
+        assert!(out.failed.is_empty(), "{:?}", out.failed);
+        assert!(b.join("a/deep").is_dir());
+        assert!(!a.exists());
+
+        let nested = move_folders_into(&[b.clone()], &b.join("a"));
+        assert_eq!(nested.failed.len(), 1);
+    }
+}

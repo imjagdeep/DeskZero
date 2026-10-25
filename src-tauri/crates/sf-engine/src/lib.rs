@@ -4,9 +4,11 @@
 //! adapter over this crate.
 
 pub mod alive;
+pub mod browse;
 pub mod classify;
 pub mod config;
 pub mod duplicates;
+pub mod fileops;
 pub mod fsutil;
 pub mod history;
 pub mod mover;
@@ -15,6 +17,7 @@ pub mod renamer;
 pub mod rules;
 pub mod search;
 pub mod search_index;
+pub mod thumbs;
 pub mod tidy;
 pub mod types;
 pub mod watcher;

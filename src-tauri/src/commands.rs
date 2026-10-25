@@ -128,6 +128,11 @@ fn validate_settings(s: &Settings) -> CmdResult<()> {
     if let Some(sf) = &s.organize_root {
         all.push(sf);
     }
+    if let Some(start) = &s.start_folder {
+        if !start.is_absolute() {
+            return Err(format!("{} is not a full path", start.display()));
+        }
+    }
     for p in &all {
         if !p.is_absolute() {
             return Err(format!("{} is not a full path", p.display()));
@@ -648,6 +653,159 @@ pub async fn storage_overview(app: AppHandle) -> CmdResult<Vec<sf_engine::tidy::
         return Ok(Vec::new());
     };
     blocking(move || sf_engine::tidy::storage_overview(&root).map_err(|e| e.to_string())).await
+}
+
+// ---------- file browser ----------
+
+#[derive(Serialize)]
+pub struct ItemDto {
+    name: String,
+    path: PathBuf,
+    is_dir: bool,
+    size_bytes: u64,
+    modified: Option<String>,
+    category: Option<sf_engine::Category>,
+    children: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn list_folder(path: PathBuf, show_hidden: bool) -> CmdResult<Vec<ItemDto>> {
+    blocking(move || {
+        let items = sf_engine::browse::list_dir(&path, show_hidden)
+            .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+        Ok(items
+            .into_iter()
+            .map(|i| ItemDto {
+                name: i.name,
+                path: i.path,
+                is_dir: i.is_dir,
+                size_bytes: i.size_bytes,
+                modified: time_str(i.modified),
+                category: i.category,
+                children: i.children,
+            })
+            .collect())
+    })
+    .await
+}
+
+/// Total size of each folder, for the folder tiles. Asked for after the
+/// listing is on screen, since big folders take a while to walk.
+#[tauri::command]
+pub async fn folder_sizes(paths: Vec<PathBuf>) -> CmdResult<Vec<(PathBuf, u64)>> {
+    blocking(move || {
+        Ok(paths
+            .into_iter()
+            .take(200)
+            .map(|p| {
+                let (bytes, _) = sf_engine::tidy::folder_size(&p);
+                (p, bytes)
+            })
+            .collect())
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn places() -> Vec<sf_engine::browse::Place> {
+    sf_engine::browse::places()
+}
+
+#[tauri::command]
+pub async fn rename_item(path: PathBuf, new_name: String) -> CmdResult<PathBuf> {
+    blocking(move || sf_engine::fileops::rename(&path, &new_name).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+pub async fn new_folder(dir: PathBuf, name: String) -> CmdResult<PathBuf> {
+    blocking(move || sf_engine::fileops::new_folder(&dir, &name).map_err(|e| e.to_string())).await
+}
+
+#[tauri::command]
+pub async fn copy_items(
+    paths: Vec<PathBuf>,
+    dest: PathBuf,
+) -> CmdResult<sf_engine::fileops::Outcome> {
+    blocking(move || Ok(sf_engine::fileops::copy_into(&paths, &dest))).await
+}
+
+/// Folders only: files are moved through plan_move_into + execute_plan so
+/// they land in History and can be undone.
+#[tauri::command]
+pub async fn move_folders(
+    paths: Vec<PathBuf>,
+    dest: PathBuf,
+) -> CmdResult<sf_engine::fileops::Outcome> {
+    blocking(move || Ok(sf_engine::fileops::move_folders_into(&paths, &dest))).await
+}
+
+#[tauri::command]
+pub async fn trash_items(paths: Vec<PathBuf>) -> CmdResult<()> {
+    blocking(move || sf_engine::fileops::trash(&paths)).await
+}
+
+/// Picture previews already made, keyed by path, size and modified time (so
+/// an edited picture gets a new one).
+type ThumbKey = (PathBuf, u64, Option<std::time::SystemTime>);
+
+#[derive(Default)]
+pub struct ThumbCache(std::sync::Mutex<std::collections::HashMap<ThumbKey, Option<String>>>);
+
+/// Previews for picture files as data URLs; paths without one are left out.
+#[tauri::command]
+pub async fn thumbnails(
+    app: AppHandle,
+    paths: Vec<PathBuf>,
+) -> CmdResult<std::collections::HashMap<PathBuf, String>> {
+    use base64::Engine;
+    blocking(move || {
+        let cache = app.state::<ThumbCache>();
+        let mut out = std::collections::HashMap::new();
+        for path in paths.into_iter().take(48) {
+            let Ok(md) = std::fs::metadata(&path) else {
+                continue;
+            };
+            let key = (path.clone(), md.len(), md.modified().ok());
+            let cached = cache.0.lock().ok().and_then(|c| c.get(&key).cloned());
+            let url = match cached {
+                Some(url) => url,
+                None => {
+                    let url = sf_engine::thumbs::thumbnail(&path, 256).ok().flatten().map(
+                        |(mime, bytes)| {
+                            format!(
+                                "data:{mime};base64,{}",
+                                base64::engine::general_purpose::STANDARD.encode(bytes)
+                            )
+                        },
+                    );
+                    if let Ok(mut c) = cache.0.lock() {
+                        // Previews are ~20 KB each; keep the cache bounded.
+                        if c.len() > 2000 {
+                            c.clear();
+                        }
+                        c.insert(key, url.clone());
+                    }
+                    url
+                }
+            };
+            if let Some(url) = url {
+                out.insert(path, url);
+            }
+        }
+        Ok(out)
+    })
+    .await
+}
+
+#[tauri::command]
+pub async fn drives() -> CmdResult<Vec<crate::drives::Drive>> {
+    blocking(|| Ok(crate::drives::list())).await
+}
+
+/// (total, free) bytes on the drive holding `path`.
+#[tauri::command]
+pub async fn disk_space(path: PathBuf) -> CmdResult<Option<(u64, u64)>> {
+    blocking(move || Ok(crate::drives::space(&path))).await
 }
 
 // ---------- universal search ----------

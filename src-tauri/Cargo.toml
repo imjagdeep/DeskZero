@@ -37,11 +37,16 @@ winreg = "0.55"
 windows = { version = "0.62", features = [
   "Win32_Foundation",
   "Win32_Graphics_Gdi",
+  "Win32_Storage_FileSystem",
   "Win32_System_Com",
   "Win32_System_Threading",
   "Win32_UI_Shell",
   "Win32_UI_WindowsAndMessaging",
 ] }
+
+# Free space on drives.
+[target.'cfg(unix)'.dependencies]
+libc = "0.2"
 
 # Real app and file icons in search results.
 [target.'cfg(any(windows, target_os = "macos"))'.dependencies]
