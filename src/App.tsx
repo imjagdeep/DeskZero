@@ -11,7 +11,7 @@ import { PAGES, Sidebar, type NavTarget, type Page } from "./components/Sidebar"
 import { api } from "./lib/api";
 import { fileName } from "./lib/format";
 import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
-import type { Place } from "./lib/types";
+import type { Drive, Place } from "./lib/types";
 import { checkAndDownload, dailyCheckDue } from "./lib/updates";
 import { Browse, type Location } from "./pages/Browse";
 import { Cleanup } from "./pages/Cleanup";
@@ -29,6 +29,7 @@ export default function App() {
   const [page, setPageRaw] = useState<Page>("browse");
   const setPage = useCallback((p: Page) => setPageRaw(p), []);
   const [places, setPlaces] = useState<Place[]>([]);
+  const [drives, setDrives] = useState<Drive[]>([]);
   const [platform, setPlatform] = useState("");
   // Browser history: back/forward walk this list, like a file manager.
   const [hist, setHist] = useState<{ stack: Location[]; at: number }>({ stack: [], at: -1 });
@@ -104,16 +105,31 @@ export default function App() {
     };
   }, [autoUpdate]);
 
-  // Open on Downloads (or the first standard folder this computer has).
+  // Open on the folder chosen in Settings, else Downloads (or the first
+  // standard folder this computer has). Waits for the settings to load.
+  const startFolder = cfg ? (cfg.settings.start_folder ?? "") : null;
   useEffect(() => {
+    if (startFolder === null) return;
     api
       .places()
       .then((list) => {
         setPlaces(list);
-        const start = list.find((p) => p.id === "downloads") ?? list[0];
-        if (start) goLoc({ path: start.path, kind: null });
+        const start = startFolder || (list.find((p) => p.id === "downloads") ?? list[0])?.path;
+        if (start) setHist((h) => (h.stack.length ? h : { stack: [{ path: start, kind: null }], at: 0 }));
       })
       .catch(toastError);
+  }, [startFolder]);
+
+  // Drives: at start and whenever the window comes back to the front (a USB
+  // stick may have been plugged in meanwhile).
+  useEffect(() => {
+    const load = () => api.drives().then(setDrives).catch(() => undefined);
+    load();
+    window.addEventListener("focus", load);
+    return () => window.removeEventListener("focus", load);
+  }, []);
+
+  useEffect(() => {
     // Each system gets its own look (Finder, File Explorer, GNOME Files).
     api
       .platform()
@@ -122,7 +138,7 @@ export default function App() {
         document.documentElement.setAttribute("data-os", os);
       })
       .catch(() => undefined);
-  }, [goLoc]);
+  }, []);
 
   const navigate = useCallback(
     (t: NavTarget) => {
@@ -130,12 +146,17 @@ export default function App() {
         const pl = places.find((p) => `place:${p.id}` === t);
         if (pl) goLoc({ path: pl.path, kind: null });
         setPage("browse");
+      } else if (t.startsWith("drive:")) {
+        goLoc({ path: t.slice("drive:".length), kind: null });
+        setPage("browse");
       } else setPage(t as Page);
     },
     [places, goLoc, setPage],
   );
-  const placeHere = page === "browse" && loc && !loc.kind ? places.find((p) => p.path === loc.path) : undefined;
-  const active: NavTarget = placeHere ? `place:${placeHere.id}` : page;
+  const here = page === "browse" && loc && !loc.kind ? loc.path : null;
+  const placeHere = here ? places.find((p) => p.path === here) : undefined;
+  const driveHere = here ? drives.find((d) => d.path === here) : undefined;
+  const active: NavTarget = placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
   const folderTitle = loc ? fileName(loc.path.replace(/[\\/]+$/, "")) : "";
 
   useEffect(() => {
@@ -167,9 +188,9 @@ export default function App() {
         onError={toastError}
       />
       <div className="app">
-        <Sidebar active={active} places={places} onNavigate={navigate} />
+        <Sidebar active={active} places={places} drives={drives} onNavigate={navigate} />
         <main className={page === "browse" ? "content content-browse" : "content"}>
-          {page === "browse" && loc && (
+          {page === "browse" && loc && cfg && (
             <Browse
               loc={loc}
               go={goLoc}
@@ -178,6 +199,7 @@ export default function App() {
               canBack={hist.at > 0}
               canForward={hist.at < hist.stack.length - 1}
               platform={platform}
+              settings={cfg.settings}
             />
           )}
           {page === "home" && <Home />}

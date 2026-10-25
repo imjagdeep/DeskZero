@@ -339,3 +339,41 @@ button.bz-icon:hover:not(:disabled) { background: var(--hover); filter: none; co
   .bz-row { grid-template-columns: 24px minmax(0, 1fr) 80px; }
   .bz-row-kind, .bz-row-date { display: none; }
 }
+
+/* ---------- phase 2: actions, previews, menus ---------- */
+.bz-tile, .bz-row { cursor: default; user-select: none; outline: none; }
+.bz-tile:focus-visible, .bz-row:focus-visible { box-shadow: 0 0 0 2px var(--bz-select-ring); }
+.bz-tile:hover, .bz-row:hover { background: var(--hover); }
+.bz-tile.selected, .bz-row.selected { background: var(--bz-select); }
+.bz-tile.cut, .bz-row.cut { opacity: 0.5; }
+
+.bz-thumb {
+  width: 108px;
+  height: 84px;
+  margin: 2px 0 0;
+  object-fit: cover;
+  border-radius: 6px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18), 0 0 0 0.5px rgba(0, 0, 0, 0.1);
+  background: var(--control);
+}
+.bz-thumb.small { width: 20px; height: 20px; margin: 0; border-radius: 3px; }
+
+input.bz-rename:not([type="checkbox"]) {
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 13px;
+  text-align: center;
+}
+.bz-row input.bz-rename:not([type="checkbox"]) { text-align: left; }
+
+.ctx-menu { position: fixed; z-index: 30; min-width: 220px; }
+.menu-row.danger:not(:disabled) { color: var(--red); }
+.menu-row:focus-visible, .ctx-menu .menu-row:focus { background: var(--accent-grad); color: var(--accent-text); outline: none; box-shadow: none; }
+.ctx-menu .menu-row:focus .menu-accel { color: color-mix(in srgb, var(--accent-text) 70%, transparent); }
+
+.confirm-card { width: min(440px, 92vw); }
+.confirm-card h2 { word-break: break-word; }
+
+.settings-tabs { margin: 4px 0 14px; }
+.settings-tabs button { padding: 0 14px; }

@@ -1,12 +1,14 @@
 import logo from "../assets/logo.png";
 import { useStatus } from "../lib/store";
-import type { Place, PlaceId } from "../lib/types";
+import { humanSize } from "../lib/format";
+import type { Drive, Place, PlaceId } from "../lib/types";
 import { SideNav, type NavGroup } from "../shell/SideNav";
 import {
   BroomIcon,
   DesktopIcon,
   DocumentIcon,
   DownloadIcon,
+  DriveIcon,
   FilmIcon,
   ImageIcon,
   MusicIcon,
@@ -18,6 +20,7 @@ import {
   SearchIcon,
   SettingsIcon,
   SparkleIcon,
+  UsbIcon,
   WatchIcon,
 } from "./Icons";
 
@@ -70,16 +73,18 @@ const PLACE_ICONS: Record<PlaceId, (p: { size?: number }) => React.ReactElement>
   videos: FilmIcon,
 };
 
-/** A sidebar entry: one of the pages, or a place opened in the browser. */
-export type NavTarget = Page | `place:${PlaceId}`;
+/** A sidebar entry: one of the pages, or a place or drive opened in the browser. */
+export type NavTarget = Page | `place:${PlaceId}` | `drive:${string}`;
 
 export function Sidebar({
   active,
   places,
+  drives,
   onNavigate,
 }: {
   active: NavTarget;
   places: Place[];
+  drives: Drive[];
   onNavigate: (t: NavTarget) => void;
 }) {
   const status = useStatus();
@@ -90,6 +95,17 @@ export function Sidebar({
       items: places.map((pl) => ({ page: `place:${pl.id}` as const, label: pl.label, Icon: PLACE_ICONS[pl.id], hint: pl.path })),
     },
   ];
+  if (drives.length) {
+    groups.push({
+      title: "Locations",
+      items: drives.map((d) => ({
+        page: `drive:${d.path}` as const,
+        label: d.name,
+        Icon: d.removable ? UsbIcon : DriveIcon,
+        hint: `${humanSize(d.free)} free of ${humanSize(d.total)}`,
+      })),
+    });
+  }
   for (const p of PAGES) {
     if (p.page === "browse") continue; // the places above are the browser
     let g = groups.find((x) => x.title === p.group);

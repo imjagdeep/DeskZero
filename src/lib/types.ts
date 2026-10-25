@@ -61,6 +61,12 @@ export interface Settings {
   search_shortcut: string | null;
   /** null = default (⌘/Ctrl+Alt+O), "" = off */
   organize_shortcut: string | null;
+  /** File browser: folder it opens on; null = Downloads. */
+  start_folder: string | null;
+  show_hidden: boolean;
+  thumbnails: boolean;
+  folder_sizes: boolean;
+  confirm_delete: boolean;
 }
 
 export type RuleKind = "filename" | "custom" | "extension";
@@ -205,4 +211,18 @@ export interface Place {
   id: PlaceId;
   label: string;
   path: string;
+}
+
+export interface Drive {
+  name: string;
+  path: string;
+  total: number;
+  free: number;
+  removable: boolean;
+}
+
+/** Result of a copy or folder move: new paths, and what failed and why. */
+export interface Outcome {
+  done: string[];
+  failed: [string, string][];
 }

@@ -2,6 +2,7 @@
 
 mod commands;
 mod desklab;
+mod drives;
 mod finder;
 mod icons;
 mod keys;
@@ -102,6 +103,7 @@ pub fn run() {
             app.manage(state);
             app.manage(finder::Finder::default());
             app.manage(icons::IconCache::default());
+            app.manage(commands::ThumbCache::default());
             finder::start(app.handle());
 
             // Another app owning a key only costs that shortcut.
@@ -181,6 +183,14 @@ pub fn run() {
             commands::list_folder,
             commands::folder_sizes,
             commands::places,
+            commands::rename_item,
+            commands::new_folder,
+            commands::copy_items,
+            commands::move_folders,
+            commands::trash_items,
+            commands::thumbnails,
+            commands::drives,
+            commands::disk_space,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DeskZero")

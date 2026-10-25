@@ -7,12 +7,16 @@ description = "Core filesystem organization engine for DeskZero. Pure Rust, no T
 [dependencies]
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "6"
+# Picture previews in the file browser (decoders only for common formats).
+image = { version = "0.25", default-features = false, features = ["png", "jpeg", "gif", "webp", "bmp", "ico", "tiff"] }
 kamadak-exif = "0.6"
 notify-debouncer-full = "0.4"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 sha2 = "0.10"
 thiserror = "2"
+# Move to Trash / Recycle Bin (restorable) instead of deleting.
+trash = "5"
 tracing = "0.1"
 walkdir = "2"
 

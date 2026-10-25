@@ -294,3 +294,25 @@ export const RefreshIcon = (p: IconProps) => (
     <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" />
   </Svg>
 );
+
+export const NewFolderIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M3 7.5a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
+    <path d="M12 10.5v5M9.5 13h5" />
+  </Svg>
+);
+
+export const DriveIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="6" width="18" height="12" rx="2.2" />
+    <path d="M3.5 13.5h17" />
+    <circle cx="17" cy="15.8" r="0.8" fill="currentColor" />
+  </Svg>
+);
+
+export const UsbIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="7" y="9" width="10" height="12" rx="2" />
+    <path d="M9 9V3.5h6V9M10.8 5.8h.01M13.2 5.8h.01" />
+  </Svg>
+);
