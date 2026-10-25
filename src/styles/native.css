@@ -1,0 +1,203 @@
+/* Every page in each system's own design language. [data-os] is set from the
+   Rust platform name. macOS: System Settings (grouped inset rows, blue
+   controls, sheets). Windows 11: Settings app (separate setting cards,
+   Fluent toggles, centered dialogs). Linux: GNOME / libadwaita (boxed
+   lists, flat buttons, round dialogs). Layout pieces shared by all three
+   come first. */
+
+/* ---------- shared layout ---------- */
+.settings-page { max-width: 1040px; }
+.settings-layout { display: grid; grid-template-columns: 180px minmax(0, 1fr); gap: 24px; align-items: start; margin-top: 8px; }
+.settings-nav { position: sticky; top: 0; display: flex; flex-direction: column; gap: 2px; }
+.settings-nav-item {
+  height: 30px;
+  padding: 0 10px;
+  text-align: left;
+  background: none;
+  box-shadow: none;
+  border-radius: 7px;
+  font-weight: 500;
+}
+.settings-nav-item:hover:not(:disabled) { background: var(--hover); filter: none; }
+.settings-nav-item.active { background: var(--accent); color: var(--accent-text); }
+.settings-body > .card:first-child { margin-top: 0; }
+@media (max-width: 760px) {
+  .settings-layout { grid-template-columns: 1fr; }
+  .settings-nav { position: static; flex-direction: row; flex-wrap: wrap; }
+}
+
+/* Lined up with the centered page below it (max 900px, 34px padding). */
+.page-tabs { margin: 22px 0 0 max(34px, calc((100% - 900px) / 2 + 34px)); }
+.page-tabs + .page { padding-top: 14px; }
+
+.rename-card { width: min(720px, 94vw); }
+.rename-card input.mono { width: 100%; }
+.rename-preview { max-height: 46vh; overflow: auto; border-radius: 8px; background: var(--group); padding: 4px 10px; }
+.rename-row { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 10px; align-items: center; min-height: 28px; border-top: 0.5px solid var(--sep); }
+.rename-row:first-child { border-top: none; }
+.rename-row .ellipsis { max-width: none; }
+
+.cleanup-options { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 24px; margin-bottom: 4px; }
+.cleanup-options .check { border-top: none; flex-direction: row; justify-content: flex-start; padding: 4px 0; }
+.cleanup-options .field { flex-direction: row; align-items: center; gap: 8px; margin: 4px 0; }
+
+/* ---------- macOS: System Settings ---------- */
+:root[data-os="macos"] {
+  --accent: #007aff;
+  --accent-hover: #1a87ff;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(0, 122, 255, 0.16);
+  --accent-grad: linear-gradient(180deg, #2b8cff 0%, #007aff 100%);
+}
+@media (prefers-color-scheme: dark) {
+  :root[data-os="macos"]:not([data-theme="light"]) {
+    --accent: #0a84ff;
+    --accent-hover: #3399ff;
+    --accent-text: #ffffff;
+    --accent-soft: rgba(10, 132, 255, 0.2);
+    --accent-grad: linear-gradient(180deg, #3399ff 0%, #0a84ff 100%);
+  }
+}
+:root[data-os="macos"][data-theme="dark"] {
+  --accent: #0a84ff;
+  --accent-hover: #3399ff;
+  --accent-text: #ffffff;
+  --accent-soft: rgba(10, 132, 255, 0.2);
+  --accent-grad: linear-gradient(180deg, #3399ff 0%, #0a84ff 100%);
+}
+/* Finder's sidebar selects with a grey fill; blue is for lists and controls. */
+:root[data-os="macos"] .nav-item.active { background: var(--selected); color: var(--text); box-shadow: none; }
+:root[data-os="macos"] .nav-item.active svg { color: var(--accent); }
+:root[data-os="macos"] .page-header h1 { font-size: 20px; }
+:root[data-os="macos"] .card { border-radius: 10px; }
+/* Sheets slide down from the top of the window. */
+:root[data-os="macos"] .modal-backdrop { padding-top: 0; }
+:root[data-os="macos"] .modal { border-top-left-radius: 0; border-top-right-radius: 0; animation: mac-sheet 0.22s cubic-bezier(0.2, 0.9, 0.3, 1); }
+@keyframes mac-sheet { from { transform: translateY(-100%); } }
+
+/* ---------- Windows 11: Settings app ---------- */
+:root[data-os="windows"] .page-header h1 {
+  font-family: "Segoe UI Variable Display", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+:root[data-os="windows"] h3 { text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--text); font-weight: 600; }
+/* Cards: white (or dark grey) setting cards with a hairline border. */
+:root[data-os="windows"] .card,
+:root[data-os="windows"] .card-row,
+:root[data-os="windows"] .stat,
+:root[data-os="windows"] .empty {
+  background: color-mix(in srgb, var(--control) 75%, var(--window));
+  border: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+  border-radius: 6px;
+}
+:root[data-os="windows"] .card { padding: 14px 16px; }
+:root[data-os="windows"] .check { border-top-color: color-mix(in srgb, var(--text) 8%, transparent); padding: 12px 0; }
+/* Buttons: 4px corners, a thin border, solid accent for the main one. */
+:root[data-os="windows"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .chip, .segmented button)) {
+  border-radius: 4px;
+  box-shadow: none;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-bottom-color: color-mix(in srgb, var(--text) 20%, transparent);
+}
+:root[data-os="windows"] :is(.page, .modal) button.primary { background: var(--accent); border-color: transparent; }
+:root[data-os="windows"] :is(.page, .modal) input:not([type="checkbox"]),
+:root[data-os="windows"] :is(.page, .modal) select {
+  border-radius: 4px;
+  border: 1px solid color-mix(in srgb, var(--text) 12%, transparent);
+  border-bottom: 1px solid color-mix(in srgb, var(--text) 45%, transparent);
+  box-shadow: none;
+}
+:root[data-os="windows"] :is(.page, .modal) input:not([type="checkbox"]):focus,
+:root[data-os="windows"] :is(.page, .modal) select:focus { border-bottom: 2px solid var(--accent); box-shadow: none; }
+/* Fluent toggle: outlined pill with a dark knob when off, accent with a
+   white knob when on. */
+:root[data-os="windows"] input[type="checkbox"] {
+  width: 40px;
+  height: 20px;
+  border-radius: 10px;
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--text) 60%, transparent);
+}
+:root[data-os="windows"] input[type="checkbox"]::after {
+  top: 3px;
+  left: 4px;
+  width: 12px;
+  height: 12px;
+  background: color-mix(in srgb, var(--text) 75%, transparent);
+  box-shadow: none;
+}
+:root[data-os="windows"] input[type="checkbox"]:checked { background: var(--accent); border-color: var(--accent); }
+:root[data-os="windows"] input[type="checkbox"]:checked::after { background: var(--accent-text); transform: translateX(20px); }
+/* Settings sections: like the Settings app's left list, with the accent bar. */
+:root[data-os="windows"] .settings-nav-item { position: relative; border-radius: 4px; height: 36px; }
+:root[data-os="windows"] .settings-nav-item.active { background: var(--selected); color: var(--text); }
+:root[data-os="windows"] .settings-nav-item.active::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--accent);
+}
+/* ContentDialog: centered, with the buttons on a shaded footer band. */
+:root[data-os="windows"] .modal-backdrop { align-items: center; padding-top: 0; backdrop-filter: none; }
+:root[data-os="windows"] .modal { border-radius: 8px; padding-bottom: 0; border: 1px solid color-mix(in srgb, var(--text) 10%, transparent); }
+:root[data-os="windows"] .modal h2 { font-size: 20px; font-weight: 600; }
+:root[data-os="windows"] .modal-actions {
+  margin: 20px -22px 0;
+  padding: 18px 22px;
+  background: color-mix(in srgb, var(--text) 4%, var(--window));
+  border-top: 1px solid color-mix(in srgb, var(--text) 8%, transparent);
+}
+:root[data-os="windows"] .modal-actions button { flex: 1; }
+
+/* ---------- Linux: GNOME / libadwaita ---------- */
+:root[data-os="linux"] .page-header h1 { font-size: 20px; font-weight: 800; letter-spacing: 0; }
+:root[data-os="linux"] h3 { text-transform: none; letter-spacing: 0; font-size: 13px; color: var(--text); font-weight: 700; }
+/* Boxed lists: rounded, a soft outline, separators between rows. */
+:root[data-os="linux"] .card,
+:root[data-os="linux"] .card-row,
+:root[data-os="linux"] .stat,
+:root[data-os="linux"] .empty {
+  background: var(--control);
+  border: none;
+  border-radius: 12px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.03), 0 1px 3px 1px rgba(0, 0, 0, 0.07), 0 2px 6px 2px rgba(0, 0, 0, 0.03);
+}
+/* Flat buttons; the main one is filled with the accent ("suggested action"). */
+:root[data-os="linux"] :is(.page, .modal) button:where(:not(.link, .settings-nav-item, .segmented button)) {
+  border-radius: 6px;
+  box-shadow: none;
+  background: color-mix(in srgb, var(--text) 10%, transparent);
+  font-weight: 700;
+}
+:root[data-os="linux"] :is(.page, .modal) button.primary { background: var(--accent); color: var(--accent-text); }
+:root[data-os="linux"] :is(.page, .modal) input:not([type="checkbox"]),
+:root[data-os="linux"] :is(.page, .modal) select {
+  border-radius: 6px;
+  border: none;
+  background-color: color-mix(in srgb, var(--text) 8%, transparent);
+  box-shadow: none;
+}
+:root[data-os="linux"] :is(.page, .modal) input:not([type="checkbox"]):focus,
+:root[data-os="linux"] :is(.page, .modal) select:focus { box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent) 50%, transparent); }
+/* Adwaita switch: wider, fully rounded, knob with a soft shadow. */
+:root[data-os="linux"] input[type="checkbox"] {
+  width: 46px;
+  height: 26px;
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--text) 15%, transparent);
+}
+:root[data-os="linux"] input[type="checkbox"]::after { top: 3px; left: 3px; width: 20px; height: 20px; background: #fff; }
+:root[data-os="linux"] input[type="checkbox"]:checked { background: var(--accent); }
+:root[data-os="linux"] input[type="checkbox"]:checked::after { background: #fff; transform: translateX(20px); }
+:root[data-os="linux"] .settings-nav-item { border-radius: 6px; height: 36px; }
+:root[data-os="linux"] .settings-nav-item.active { background: var(--selected); color: var(--text); font-weight: 700; }
+/* Dialogs: centered, very round, title centered. */
+:root[data-os="linux"] .modal-backdrop { align-items: center; padding-top: 0; }
+:root[data-os="linux"] .modal { border-radius: 14px; }
+:root[data-os="linux"] .modal > h2:first-child { text-align: center; }

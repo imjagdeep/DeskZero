@@ -67,6 +67,8 @@ export interface Settings {
   thumbnails: boolean;
   folder_sizes: boolean;
   confirm_delete: boolean;
+  /** Folders pinned to the sidebar, in order. */
+  pinned: string[];
 }
 
 export type RuleKind = "filename" | "custom" | "extension";
@@ -145,11 +147,14 @@ export interface HistoryItem {
 export interface HistoryEntry {
   id: string;
   ts: string;
-  kind: "move" | "undo";
+  /** created / trashed: things the file browser made or deleted. */
+  kind: "move" | "undo" | "created" | "trashed";
   items: HistoryItem[];
   quarantined: HistoryItem[];
   failed: { src: string; error: string }[];
   undone: boolean;
+  /** What the browser did ("Renamed", "Moved"…); absent for organizer batches. */
+  label?: string;
 }
 
 export interface FileInfo {
@@ -225,4 +230,16 @@ export interface Drive {
 export interface Outcome {
   done: string[];
   failed: [string, string][];
+}
+
+export interface CleanItem {
+  path: string;
+  size_bytes: number;
+  reason: string;
+}
+
+export interface CleanGroup {
+  id: "unfinished" | "installers" | "duplicates" | "large" | "unused";
+  title: string;
+  items: CleanItem[];
 }

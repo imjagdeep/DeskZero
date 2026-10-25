@@ -12,15 +12,12 @@ import { api } from "./lib/api";
 import { fileName } from "./lib/format";
 import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
 import type { Drive, Place } from "./lib/types";
+import { startUndo } from "./lib/undo";
 import { checkAndDownload, dailyCheckDue } from "./lib/updates";
 import { Browse, type Location } from "./pages/Browse";
-import { Cleanup } from "./pages/Cleanup";
 import { History } from "./pages/History";
-import { Home } from "./pages/Home";
-import { Rules } from "./pages/Rules";
+import { Organizer } from "./pages/Organizer";
 import { Settings } from "./pages/Settings";
-import { Duplicates, Rename, Search } from "./pages/Tools";
-import { WatchFolders } from "./pages/WatchFolders";
 import { ShellDialogs } from "./shell/Dialogs";
 import { TopBar } from "./shell/TopBar";
 import { applySavedZoom } from "./shell/shell";
@@ -50,6 +47,7 @@ export default function App() {
 
   useEffect(() => {
     startStores();
+    startUndo();
 
     // Files from the right-click menu. Explorer starts one launch per
     // selected file, so collect them briefly into one preview.
@@ -146,8 +144,8 @@ export default function App() {
         const pl = places.find((p) => `place:${p.id}` === t);
         if (pl) goLoc({ path: pl.path, kind: null });
         setPage("browse");
-      } else if (t.startsWith("drive:")) {
-        goLoc({ path: t.slice("drive:".length), kind: null });
+      } else if (t.startsWith("drive:") || t.startsWith("pin:")) {
+        goLoc({ path: t.slice(t.indexOf(":") + 1), kind: null });
         setPage("browse");
       } else setPage(t as Page);
     },
@@ -156,7 +154,8 @@ export default function App() {
   const here = page === "browse" && loc && !loc.kind ? loc.path : null;
   const placeHere = here ? places.find((p) => p.path === here) : undefined;
   const driveHere = here ? drives.find((d) => d.path === here) : undefined;
-  const active: NavTarget = placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
+  const pinHere = here && cfg?.settings.pinned.includes(here) ? here : undefined;
+  const active: NavTarget = pinHere ? `pin:${pinHere}` : placeHere ? `place:${placeHere.id}` : driveHere ? `drive:${driveHere.path}` : page;
   const folderTitle = loc ? fileName(loc.path.replace(/[\\/]+$/, "")) : "";
 
   useEffect(() => {
@@ -188,7 +187,7 @@ export default function App() {
         onError={toastError}
       />
       <div className="app">
-        <Sidebar active={active} places={places} drives={drives} onNavigate={navigate} />
+        <Sidebar active={active} places={places} drives={drives} pinned={cfg?.settings.pinned ?? []} onNavigate={navigate} />
         <main className={page === "browse" ? "content content-browse" : "content"}>
           {page === "browse" && loc && cfg && (
             <Browse
@@ -202,13 +201,7 @@ export default function App() {
               settings={cfg.settings}
             />
           )}
-          {page === "home" && <Home />}
-          {page === "watch" && <WatchFolders />}
-          {page === "rules" && <Rules />}
-          {page === "search" && <Search />}
-          {page === "duplicates" && <Duplicates />}
-          {page === "rename" && <Rename />}
-          {page === "cleanup" && <Cleanup />}
+          {page === "home" && <Organizer />}
           {page === "history" && <History />}
           {page === "settings" && <Settings />}
         </main>

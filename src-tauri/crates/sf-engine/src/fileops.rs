@@ -4,6 +4,7 @@
 //! undone. Nothing here deletes permanently.
 
 use crate::fsutil::free_target;
+use crate::types::{PlanStatus, PlannedOp};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -141,38 +142,49 @@ fn copy_dir(src: &Path, target: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Move folders into `dest` by renaming them. Only within one drive: moving
-/// a folder between drives would mean copy-then-delete, which DeskZero
-/// doesn't do on its own.
-pub fn move_folders_into(srcs: &[PathBuf], dest: &Path) -> Outcome {
-    let mut out = Outcome::default();
-    for src in srcs {
-        let res = (|| {
-            let name = src
-                .file_name()
-                .ok_or_else(|| invalid(format!("{} can't be moved", src.display())))?;
-            if dest.starts_with(src) {
-                return Err(invalid("a folder can't be moved into itself".into()));
-            }
+/// Plan moving files and folders into `dest` for the mover (which records
+/// History, so the move can be undone). Name clashes get "name (1)"; a
+/// folder never goes inside itself; items already in `dest` stay put.
+pub fn plan_move(srcs: &[PathBuf], dest: &Path) -> Vec<PlannedOp> {
+    let mut claimed: Vec<PathBuf> = Vec::new();
+    srcs.iter()
+        .map(|src| {
+            let size = fs::symlink_metadata(src).map(|m| m.len()).unwrap_or(0);
+            let status = |status| PlannedOp {
+                src: src.clone(),
+                dst: src.clone(),
+                status,
+                rule_id: None,
+                rule_name: None,
+                size_bytes: size,
+            };
+            let Some(name) = src.file_name() else {
+                return status(PlanStatus::Skip {
+                    reason: "can't be moved".into(),
+                });
+            };
             if src.parent() == Some(dest) {
-                return Ok(src.clone());
+                return status(PlanStatus::Noop);
             }
-            let target = free_target(&dest.join(name), &[])?;
-            fs::rename(src, &target).map_err(|e| {
-                if e.raw_os_error() == Some(if cfg!(windows) { 17 } else { 18 }) {
-                    invalid("folders can't be moved to another drive yet; copy it instead".into())
-                } else {
-                    e
+            if src.is_dir() && dest.starts_with(src) {
+                return status(PlanStatus::Skip {
+                    reason: "a folder can't be moved into itself".into(),
+                });
+            }
+            match free_target(&dest.join(name), &claimed) {
+                Ok(dst) => {
+                    claimed.push(dst.clone());
+                    PlannedOp {
+                        dst,
+                        ..status(PlanStatus::Move { replace: false })
+                    }
                 }
-            })?;
-            Ok(target)
-        })();
-        match res {
-            Ok(p) => out.done.push(p),
-            Err(e) => out.failed.push((src.clone(), e.to_string())),
-        }
-    }
-    out
+                Err(e) => status(PlanStatus::Skip {
+                    reason: e.to_string(),
+                }),
+            }
+        })
+        .collect()
 }
 
 /// Move items to the Trash / Recycle Bin, where they can be restored.
@@ -193,9 +205,79 @@ pub fn trash(paths: &[PathBuf]) -> Result<(), String> {
         .map_err(|e| format!("couldn't move to the Trash: {e}"))
 }
 
+/// Put items back from the Trash / Recycle Bin to where they were (undo of
+/// `trash`). The most recently deleted item wins when the same path was
+/// deleted twice. Returns how many were restored.
+#[cfg(not(target_os = "macos"))]
+pub fn restore_from_trash(paths: &[PathBuf]) -> Result<usize, String> {
+    let all = trash::os_limited::list().map_err(|e| format!("couldn't read the Trash: {e}"))?;
+    let mut picked: Vec<trash::TrashItem> = Vec::new();
+    for want in paths {
+        let newest = all
+            .iter()
+            .filter(|it| crate::fsutil::paths_equal(&it.original_path(), want))
+            .max_by_key(|it| it.time_deleted);
+        if let Some(it) = newest {
+            picked.push(it.clone());
+        }
+    }
+    let n = picked.len();
+    trash::os_limited::restore_all(picked).map_err(|e| format!("couldn't put it back: {e}"))?;
+    Ok(n)
+}
+
+/// macOS gives apps no way to put Trash items back; Finder's "Put Back" does.
+#[cfg(target_os = "macos")]
+pub fn restore_from_trash(_paths: &[PathBuf]) -> Result<usize, String> {
+    Err("On a Mac, open the Trash in Finder and choose Put Back.".into())
+}
+
+/// Remove a folder only if it is empty (undo of `new_folder`).
+pub fn remove_empty_folder(path: &Path) -> io::Result<()> {
+    fs::remove_dir(path)
+}
+
+/// The start of a text file for the preview, or None for binary files.
+pub fn text_preview(path: &Path, max_bytes: usize) -> io::Result<Option<String>> {
+    use std::io::Read;
+    let mut buf = Vec::new();
+    fs::File::open(path)?
+        .take(max_bytes as u64)
+        .read_to_end(&mut buf)?;
+    if buf.iter().take(8192).any(|&b| b == 0) {
+        return Ok(None);
+    }
+    Ok(Some(String::from_utf8_lossy(&buf).into_owned()))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn text_preview_reads_text_and_skips_binary() {
+        let tmp = tempfile::tempdir().unwrap();
+        let txt = tmp.path().join("a.txt");
+        fs::write(&txt, "hello world").unwrap();
+        assert_eq!(text_preview(&txt, 5).unwrap().as_deref(), Some("hello"));
+        let bin = tmp.path().join("a.bin");
+        fs::write(&bin, [1u8, 0, 2, 3]).unwrap();
+        assert_eq!(text_preview(&bin, 100).unwrap(), None);
+    }
+
+    #[test]
+    fn remove_empty_folder_keeps_folders_with_content() {
+        let tmp = tempfile::tempdir().unwrap();
+        let full = tmp.path().join("full");
+        fs::create_dir(&full).unwrap();
+        fs::write(full.join("x"), b"x").unwrap();
+        assert!(remove_empty_folder(&full).is_err());
+        assert!(full.join("x").exists());
+        let empty = tmp.path().join("empty");
+        fs::create_dir(&empty).unwrap();
+        remove_empty_folder(&empty).unwrap();
+        assert!(!empty.exists());
+    }
 
     #[test]
     fn names_are_checked() {
@@ -258,18 +340,23 @@ mod tests {
     }
 
     #[test]
-    fn move_folders_renames_and_refuses_self_nesting() {
+    fn plan_move_handles_folders_clashes_and_self_nesting() {
         let tmp = tempfile::tempdir().unwrap();
         let a = tmp.path().join("a");
         let b = tmp.path().join("b");
         fs::create_dir_all(a.join("deep")).unwrap();
         fs::create_dir_all(&b).unwrap();
-        let out = move_folders_into(std::slice::from_ref(&a), &b);
-        assert!(out.failed.is_empty(), "{:?}", out.failed);
-        assert!(b.join("a/deep").is_dir());
-        assert!(!a.exists());
+        fs::write(b.join("x.txt"), b"old").unwrap();
+        fs::write(tmp.path().join("x.txt"), b"new").unwrap();
 
-        let nested = move_folders_into(&[b.clone()], &b.join("a"));
-        assert_eq!(nested.failed.len(), 1);
+        let ops = plan_move(&[a.clone(), tmp.path().join("x.txt")], &b);
+        assert_eq!(ops[0].status, PlanStatus::Move { replace: false });
+        assert_eq!(ops[0].dst, b.join("a"));
+        assert_eq!(ops[1].dst, b.join("x (1).txt"));
+
+        let nested = plan_move(std::slice::from_ref(&a), &a.join("deep"));
+        assert!(matches!(nested[0].status, PlanStatus::Skip { .. }));
+        let same = plan_move(&[b.join("x.txt")], &b);
+        assert_eq!(same[0].status, PlanStatus::Noop);
     }
 }

@@ -364,6 +364,9 @@ pub struct Settings {
     /// File browser: ask before moving files to the Trash / Recycle Bin.
     #[serde(default = "default_true")]
     pub confirm_delete: bool,
+    /// File browser: folders pinned to the sidebar, in order.
+    #[serde(default)]
+    pub pinned: Vec<PathBuf>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -415,6 +418,7 @@ impl Default for Settings {
             thumbnails: true,
             folder_sizes: true,
             confirm_delete: true,
+            pinned: Vec::new(),
         }
     }
 }
@@ -455,6 +459,7 @@ mod tests {
         assert_eq!(old.start_folder, None);
         assert!(!old.show_hidden);
         assert!(old.thumbnails && old.folder_sizes && old.confirm_delete);
+        assert!(old.pinned.is_empty());
     }
 
     #[test]

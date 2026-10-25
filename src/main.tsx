@@ -6,6 +6,7 @@ import { Spotlight } from "./components/Spotlight";
 import "./styles/theme.css";
 import "./styles/shell.css";
 import "./styles/browse.css";
+import "./styles/native.css";
 
 // One bundle, two windows: the main app and the universal search bar.
 const isSpotlight = getCurrentWindow().label === "spotlight";

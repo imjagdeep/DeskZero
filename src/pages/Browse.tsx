@@ -3,12 +3,17 @@
 // only a view: nothing moves until "Sort into folders", which goes through
 // the usual preview and can be undone.
 
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { CleanupSheet } from "../components/CleanupSheet";
 import { ContextMenu, type MenuItem } from "../components/ContextMenu";
+import { PreviewSheet } from "../components/PreviewSheet";
+import { RenameSheet } from "../components/RenameSheet";
 import {
   AppGridIcon,
   ArchiveIcon,
   BackIcon,
+  BroomIcon,
   CodeIcon,
   DiscIcon,
   DocumentIcon,
@@ -30,8 +35,9 @@ import {
 } from "../components/Icons";
 import { api, errorText } from "../lib/api";
 import { dateTime, fileName, humanSize } from "../lib/format";
-import { createStore, openPreview, toast, toastError, usePreview } from "../lib/store";
+import { createStore, openPreview, refreshConfig, toast, toastError, usePreview } from "../lib/store";
 import type { BrowseItem, Category, Outcome, PlannedOp, Settings } from "../lib/types";
+import { canUndo, record, undoLast, useUndoVersion } from "../lib/undo";
 import { textFieldFocused } from "../shell/shell";
 
 /** Where the browser is: a folder, optionally narrowed to one kind of file. */
@@ -140,6 +146,16 @@ const joinPath = (dir: string, name: string) => {
 const clipStore = createStore<{ mode: "copy" | "cut"; items: { path: string; dir: boolean }[] } | null>(null);
 const useClip = () => useSyncExternalStore(clipStore.subscribe, clipStore.get);
 
+/** Edit › Find files: put the cursor in the search box (the browser may
+ *  still be appearing, so try for a few frames). */
+export function focusBrowserSearch(tries = 10) {
+  const box = document.querySelector<HTMLInputElement>(".bz-filter input");
+  if (box) {
+    box.focus();
+    box.select();
+  } else if (tries > 0) requestAnimationFrame(() => focusBrowserSearch(tries - 1));
+}
+
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 export function Browse({
@@ -176,6 +192,11 @@ export function Browse({
   const [menu, setMenu] = useState<{ x: number; y: number; items: MenuItem[] } | null>(null);
   const [confirmTrash, setConfirmTrash] = useState<string[] | null>(null);
   const [reload, setReload] = useState(0);
+  const [peeking, setPeeking] = useState<string | null>(null);
+  const [cleaning, setCleaning] = useState(false);
+  const [dropping, setDropping] = useState(false);
+  const [batchRename, setBatchRename] = useState<string[] | null>(null);
+  const undoVersion = useUndoVersion();
   const clip = useClip();
   const preview = usePreview();
   const hadPreview = useRef(false);
@@ -221,7 +242,7 @@ export function Browse({
     return () => {
       live = false;
     };
-  }, [loc.path, reload, settings.show_hidden, settings.folder_sizes]);
+  }, [loc.path, reload, undoVersion, settings.show_hidden, settings.folder_sizes]);
 
   useEffect(() => {
     setFilter("");
@@ -238,12 +259,43 @@ export function Browse({
   const folders = visible.filter((i) => i.is_dir);
   const files = visible.filter((i) => !i.is_dir);
   const kindFiles = loc.kind ? files.filter((f) => kindKey(f) === loc.kind) : files;
+  // While searching, matches show as plain files, not inside kind tiles.
+  const shownGrouping: Grouping = needle && grouping === "kind" ? "none" : grouping;
+
+  // Searching also looks inside sub-folders (same words as the old Search
+  // page: *.pdf, type:video, size:>10mb, modified:2026-09…), a moment after
+  // typing stops.
+  const [deep, setDeep] = useState<{ query: string; hits: BrowseItem[] } | null>(null);
+  useEffect(() => {
+    setDeep(null);
+    if (needle.length < 2) return;
+    let live = true;
+    const t = window.setTimeout(() => {
+      api
+        .searchFiles(loc.path, filter.trim())
+        .then((hits) => {
+          if (!live) return;
+          const here = new Set((items ?? []).map((i) => i.path));
+          setDeep({
+            query: needle,
+            hits: hits
+              .filter((h) => !here.has(h.path))
+              .map((h) => ({ name: fileName(h.path), path: h.path, is_dir: false, size_bytes: h.size_bytes, modified: h.modified, category: h.category, children: null })),
+          });
+        })
+        .catch(() => live && setDeep({ query: needle, hits: [] }));
+    }, 300);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [needle, loc.path, items]); // filter is needle untrimmed/uncased
 
   // Real system icons, and previews for pictures, for the files on screen.
   // Fetched once per path; the refs keep known ones out of the dependencies.
   const known = useRef({ icons, thumbs });
   known.current = { icons, thumbs };
-  const onScreen = (loc.kind || grouping !== "kind" ? kindFiles : []).map((f) => f.path);
+  const onScreen = [...(loc.kind || shownGrouping !== "kind" ? kindFiles : []), ...(deep?.hits.slice(0, 120) ?? [])].map((f) => f.path);
   const screenKey = onScreen.join("|");
   useEffect(() => {
     const want = onScreen.filter((p) => !(p in known.current.icons)).slice(0, 240);
@@ -271,20 +323,27 @@ export function Browse({
 
   const sections: { title: string; entries: Entry[] }[] = [];
   if (loc.kind) {
-    if (grouping === "date") pushDateSections(sections, kindFiles);
+    if (shownGrouping === "date") pushDateSections(sections, kindFiles);
     else sections.push({ title: "", entries: kindFiles.map((item) => ({ type: "file", item })) });
   } else {
     if (folders.length) sections.push({ title: "Folders", entries: folders.map((item) => ({ type: "folder", item })) });
-    if (grouping === "kind") {
+    if (shownGrouping === "kind") {
       const groups = new Map<KindKey, BrowseItem[]>();
       for (const f of files) groups.set(kindKey(f), [...(groups.get(kindKey(f)) ?? []), f]);
       const entries: Entry[] = KINDS.filter((k) => groups.has(k.key)).map((k) => ({ type: "kind", key: k.key, files: groups.get(k.key)! }));
       if (entries.length) sections.push({ title: "By kind", entries });
-    } else if (grouping === "date") {
+    } else if (shownGrouping === "date") {
       pushDateSections(sections, files);
     } else if (files.length) {
       sections.push({ title: "Files", entries: files.map((item) => ({ type: "file", item })) });
     }
+  }
+  const deepHits = deep && deep.query === needle ? deep.hits : [];
+  if (deepHits.length) {
+    sections.push({
+      title: deepHits.length >= 2000 ? "In sub-folders (first 2000)" : "In sub-folders",
+      entries: deepHits.map((item) => ({ type: "file", item })),
+    });
   }
   const flat = sections.flatMap((s) => s.entries);
   /** Selected real files and folders (kind groups are only a view). */
@@ -336,6 +395,7 @@ export function Browse({
     try {
       const name = platform === "macos" ? "untitled folder" : platform === "windows" ? "New folder" : "New Folder";
       const made = await api.newFolder(loc.path, name);
+      void record({ kind: "created", label: "New folder", paths: [made] });
       if (loc.kind) go({ path: loc.path, kind: null });
       refresh();
       setSelected(new Set([made]));
@@ -351,6 +411,7 @@ export function Browse({
     if (!name.trim() || name === item.name) return;
     try {
       const to = await api.renameItem(item.path, name);
+      void record({ kind: "rename", from: item.path, to });
       setSelected(new Set([to]));
       refresh();
     } catch (e) {
@@ -358,36 +419,41 @@ export function Browse({
     }
   }
 
+  /** Copy also goes on the system clipboard, so Explorer / Finder can paste
+   *  it. Cut stays inside DeskZero: the clipboard can't mark files as cut. */
   function copyOrCut(mode: "copy" | "cut", list: BrowseItem[] = targets) {
     if (!list.length) return;
     clipStore.set({ mode, items: list.map((t) => ({ path: t.path, dir: t.is_dir })) });
+    if (mode === "copy") void api.clipboardSetFiles(list.map((t) => t.path)).catch(toastError);
     toast(`${plural(list.length, "item")} ${mode === "copy" ? "copied" : "cut"}: paste them into another folder`);
   }
 
+  async function copyInto(paths: string[], dest: string) {
+    const r = await api.copyItems(paths, dest);
+    if (r.done.length) void record({ kind: "created", label: "Copied", paths: r.done });
+    report("copied", r);
+  }
+
+  /** Files and folders through the mover: History records it ("Moved"). */
+  async function moveInto(list: { path: string; dir: boolean }[], dest: string) {
+    const r = await api.moveItems(list.map((i) => i.path), dest);
+    report("moved", { done: new Array<string>(r.moved).fill(dest), failed: r.failed.map((f) => [f.path, f.error] as [string, string]) });
+  }
+
+
+  /** DeskZero's own cut/copy first; otherwise files copied in Explorer or
+   *  Finder (those are copied in, never moved). */
   async function paste() {
-    if (!clip) return;
     const dest = loc.path;
     try {
-      if (clip.mode === "copy") {
-        report("copied", await api.copyItems(clip.items.map((i) => i.path), dest));
-      } else {
-        // Files go through the organizer's mover, so History can undo them.
-        const dirs = clip.items.filter((i) => i.dir).map((i) => i.path);
-        const fileList = clip.items.filter((i) => !i.dir).map((i) => i.path);
-        let moved = 0;
-        const failed: [string, string][] = [];
-        if (fileList.length) {
-          const r = await api.executePlan(await api.planMoveInto(fileList, dest));
-          moved += r.moved;
-          failed.push(...r.failed.map((f) => [f.path, f.error] as [string, string]));
-        }
-        if (dirs.length) {
-          const r = await api.moveFolders(dirs, dest);
-          moved += r.done.length;
-          failed.push(...r.failed);
-        }
-        report("moved", { done: new Array<string>(moved).fill(""), failed });
+      if (clip?.mode === "cut") {
+        await moveInto(clip.items, dest);
         clipStore.set(null);
+      } else {
+        const outside = await api.clipboardGetFiles().catch(() => [] as string[]);
+        const paths = outside.length ? outside : (clip?.items.map((i) => i.path) ?? []);
+        if (!paths.length) return toast("Nothing to paste");
+        await copyInto(paths, dest);
       }
     } catch (e) {
       toastError(e);
@@ -396,7 +462,7 @@ export function Browse({
   }
 
   function report(verb: string, r: Outcome) {
-    if (r.done.length) toast(`${plural(r.done.length, "item")} ${verb}`);
+    if (r.done.length) toast(`${plural(r.done.length, "item")} ${verb} · ${mac ? "⌘" : "Ctrl+"}Z to undo`);
     for (const [path, err] of r.failed.slice(0, 3)) toast(`${fileName(path)}: ${err}`, true);
   }
 
@@ -410,6 +476,7 @@ export function Browse({
     setConfirmTrash(null);
     try {
       await api.trashItems(paths);
+      void record({ kind: "trashed", paths });
       toast(`${plural(paths.length, "item")} moved to the ${binName}`);
       setSelected(new Set());
     } catch (e) {
@@ -428,6 +495,27 @@ export function Browse({
     }
   }
 
+  const pinned = settings.pinned ?? [];
+  async function setPinned(path: string, on: boolean) {
+    try {
+      const cfg = await api.getConfig();
+      const list = cfg.settings.pinned.filter((p) => p !== path);
+      await api.saveSettings({ ...cfg.settings, pinned: on ? [...list, path] : list });
+      await refreshConfig();
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
+  /** Space: Quick Look on a Mac, DeskZero's preview elsewhere. */
+  async function peek(item: BrowseItem) {
+    try {
+      if (!(await api.quickLook(item.path))) setPeeking(item.path);
+    } catch (e) {
+      toastError(e);
+    }
+  }
+
   const revealLabel = platform === "macos" ? "Show in Finder" : platform === "windows" ? "Show in File Explorer" : "Show in Files";
 
   function itemMenu(e: Entry, x: number, y: number) {
@@ -439,10 +527,15 @@ export function Browse({
     const one = e.type === "kind" ? null : e.item;
     const list: MenuItem[] = [{ label: "Open", accel: "Enter", run: () => open(e) }];
     if (one) {
+      if (!one.is_dir) list.push({ label: "Preview", accel: "Space", run: () => void peek(one) });
+      list.push({ label: revealLabel, run: () => api.revealFile(one.path).catch(toastError) });
+      if (one.is_dir) {
+        const isPinned = pinned.includes(one.path);
+        list.push({ label: isPinned ? "Unpin from sidebar" : "Pin to sidebar", run: () => void setPinned(one.path, !isPinned) });
+      }
       list.push(
-        { label: revealLabel, run: () => api.revealFile(one.path).catch(toastError) },
         "-",
-        { label: "Rename", accel: "F2", disabled: many.length > 1, run: () => setRenaming(one.path) },
+        { label: many.length > 1 ? `Rename ${many.length} items…` : "Rename", accel: "F2", run: () => (many.length > 1 ? setBatchRename(many.filter((m) => !m.is_dir).map((m) => m.path)) : setRenaming(one.path)) },
         { label: "Copy", accel: "Mod+C", run: () => copyOrCut("copy", many) },
         { label: "Cut", accel: "Mod+X", run: () => copyOrCut("cut", many) },
         { label: "Copy path", run: () => void copyPath(one.path) },
@@ -455,14 +548,18 @@ export function Browse({
 
   function backgroundMenu(x: number, y: number) {
     setSelected(new Set());
+    const isPinned = pinned.includes(loc.path);
     setMenu({
       x,
       y,
       items: [
         { label: "New folder", accel: "Mod+Shift+N", run: () => void newFolder() },
-        { label: clip ? `Paste ${plural(clip.items.length, "item")}` : "Paste", accel: "Mod+V", disabled: !clip, run: () => void paste() },
+        { label: clip?.mode === "cut" ? `Paste ${plural(clip.items.length, "item")} here` : "Paste", accel: "Mod+V", run: () => void paste() },
+        { label: "Undo", accel: "Mod+Z", disabled: !canUndo(), run: () => void undoLast() },
         "-",
         { label: "Select all", accel: "Mod+A", run: () => setSelected(new Set(flat.map(entryId))) },
+        { label: "Clean up this folder…", run: () => setCleaning(true) },
+        { label: isPinned ? "Unpin from sidebar" : "Pin to sidebar", run: () => void setPinned(loc.path, !isPinned) },
         { label: "Refresh", accel: "F5", run: refresh },
         "-",
         { label: revealLabel, run: () => api.openFolder(loc.path).catch(toastError) },
@@ -478,7 +575,7 @@ export function Browse({
     const mine = () => root.current?.contains(document.activeElement) && !textFieldFocused();
     const onCopy = (ev: ClipboardEvent) => mine() && targets.length > 0 && (ev.preventDefault(), copyOrCut("copy"));
     const onCut = (ev: ClipboardEvent) => mine() && targets.length > 0 && (ev.preventDefault(), copyOrCut("cut"));
-    const onPaste = (ev: ClipboardEvent) => mine() && clip && (ev.preventDefault(), void paste());
+    const onPaste = (ev: ClipboardEvent) => mine() && (ev.preventDefault(), void paste());
     document.addEventListener("copy", onCopy);
     document.addEventListener("cut", onCut);
     document.addEventListener("paste", onPaste);
@@ -489,6 +586,59 @@ export function Browse({
     };
   });
 
+  // Files dragged in from Explorer / Finder: copied into the folder tile
+  // they're dropped on, else into this folder.
+  const dropRef = useRef<(paths: string[], x: number, y: number) => void>(() => undefined);
+  dropRef.current = (paths, x, y) => {
+    const hit = document.elementFromPoint(x / window.devicePixelRatio, y / window.devicePixelRatio);
+    const dest = hit?.closest<HTMLElement>("[data-folder]")?.dataset.folder ?? loc.path;
+    void copyInto(paths, dest).then(refresh, toastError);
+  };
+  useEffect(() => {
+    const un = getCurrentWebview().onDragDropEvent((e) => {
+      const p = e.payload;
+      if (p.type === "enter" || p.type === "over") setDropping(true);
+      else if (p.type === "leave") setDropping(false);
+      else if (p.type === "drop") {
+        setDropping(false);
+        dropRef.current(p.paths, p.position.x, p.position.y);
+      }
+    });
+    return () => void un.then((f) => f());
+  }, []);
+
+  // Dragging tiles onto a folder tile inside DeskZero moves them (undoable).
+  // Done with mouse events: the window's file drop (above) turns off the
+  // browser's own drag and drop on Windows.
+  const [drag, setDrag] = useState<{ x: number; y: number; count: number; over: string | null } | null>(null);
+  function startDrag(e: Entry, ev: React.MouseEvent) {
+    if (ev.button !== 0 || e.type === "kind" || renaming) return;
+    const sx = ev.clientX;
+    const sy = ev.clientY;
+    const id = entryId(e);
+    const moving = selected.has(id) ? targets : [e.item];
+    let active = false;
+    const overFolder = (x: number, y: number) => {
+      const dest = document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-folder]")?.dataset.folder ?? null;
+      return dest && !moving.some((m) => m.path === dest) ? dest : null;
+    };
+    const move = (m: MouseEvent) => {
+      if (!active && Math.hypot(m.clientX - sx, m.clientY - sy) < 6) return;
+      active = true;
+      setDrag({ x: m.clientX, y: m.clientY, count: moving.length, over: overFolder(m.clientX, m.clientY) });
+    };
+    const up = (m: MouseEvent) => {
+      window.removeEventListener("mousemove", move);
+      window.removeEventListener("mouseup", up);
+      setDrag(null);
+      if (!active) return;
+      const dest = overFolder(m.clientX, m.clientY);
+      if (dest) void moveInto(moving.map((t) => ({ path: t.path, dir: t.is_dir })), dest).then(refresh, toastError);
+    };
+    window.addEventListener("mousemove", move);
+    window.addEventListener("mouseup", up);
+  }
+
   function onKey(e: React.KeyboardEvent) {
     if ((e.target as HTMLElement).tagName === "INPUT") return;
     const mod = mac ? e.metaKey : e.ctrlKey;
@@ -498,9 +648,12 @@ export function Browse({
     if (mod && !mac && key === "c") return void (handled(), copyOrCut("copy"));
     if (mod && !mac && key === "x") return void (handled(), copyOrCut("cut"));
     if (mod && !mac && key === "v") return void (handled(), paste());
+    if (mod && !e.shiftKey && key === "z") return void (handled(), undoLast());
     if (mod && key === "a") return void (handled(), setSelected(new Set(flat.map(entryId))));
     if (e.key === "F5") return void (handled(), refresh());
     if (e.key === "F2" && targets.length === 1) return void (handled(), setRenaming(targets[0].path));
+    if (e.key === "F2" && targets.length > 1) return void (handled(), setBatchRename(targets.filter((t) => !t.is_dir).map((t) => t.path)));
+    if (e.key === " " && targets.length === 1 && !targets[0].is_dir) return void (handled(), peek(targets[0]));
     if ((e.key === "Delete" || (mac && mod && e.key === "Backspace")) && targets.length) {
       return void (handled(), askTrash(targets.map((t) => t.path)));
     }
@@ -538,6 +691,8 @@ export function Browse({
     cut: e.type !== "kind" && clip?.mode === "cut" && clip.items.some((i) => i.path === e.item.path),
     renaming: e.type !== "kind" && renaming === e.item.path,
     onSelect: (ev: React.MouseEvent) => select(e, ev),
+    onMouseDown: (ev: React.MouseEvent) => startDrag(e, ev),
+    dropTarget: e.type === "folder" && drag?.over === e.item.path,
     onOpen: () => open(e),
     onMenu: (ev: React.MouseEvent) => (ev.preventDefault(), ev.stopPropagation(), itemMenu(e, ev.clientX, ev.clientY)),
     onRename: (name: string) => e.type !== "kind" && void commitRename(e.item, name),
@@ -553,6 +708,7 @@ export function Browse({
           <button className="bz-icon" onClick={goUp} disabled={!loc.kind && !parentOf(loc.path)} title="Up (Alt+↑)" aria-label="Up one level"><UpIcon size={16} /></button>
           <button className="bz-icon" onClick={refresh} title="Refresh (F5)" aria-label="Refresh"><RefreshIcon size={16} /></button>
           <button className="bz-icon" onClick={() => void newFolder()} title="New folder" aria-label="New folder"><NewFolderIcon size={17} /></button>
+          <button className="bz-icon" onClick={() => setCleaning(true)} title="Clean up this folder" aria-label="Clean up this folder"><BroomIcon size={16} /></button>
         </div>
         <nav className="bz-crumbs" aria-label="Folder path" title={loc.path}>
           {trail.map((c, i) => (
@@ -599,8 +755,9 @@ export function Browse({
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder={`Filter ${loc.kind ? kindOf(loc.kind).label : trail[trail.length - 1]?.label ?? "folder"}`}
-              aria-label="Filter this folder"
+              placeholder={`Search ${loc.kind ? kindOf(loc.kind).label : trail[trail.length - 1]?.label ?? "folder"}`}
+              aria-label="Search this folder and its sub-folders"
+              title="Name, *.pdf, type:video, size:>10mb, modified:2026-09"
               spellCheck={false}
             />
           </label>
@@ -614,9 +771,9 @@ export function Browse({
       >
         {error && <p className="error-text bz-msg">{error}</p>}
         {!error && items && flat.length === 0 && (
-          <p className="muted bz-msg">{needle ? "Nothing here matches the filter." : "This folder is empty."}</p>
+          <p className="muted bz-msg">{needle ? (deep ? "Nothing here or in sub-folders matches." : "Searching…") : "This folder is empty."}</p>
         )}
-        {!loc.kind && grouping === "kind" && files.length > 1 && (
+        {!loc.kind && shownGrouping === "kind" && files.length > 1 && (
           <div className="bz-hint">
             <SparkleIcon size={15} />
             <span>These groups are just a view. Want real folders?</span>
@@ -654,6 +811,36 @@ export function Browse({
       </footer>
 
       {menu && <ContextMenu {...menu} onClose={() => setMenu(null)} />}
+      {dropping && <div className="bz-dropzone">Drop to copy here</div>}
+      {drag && (
+        <div className="bz-drag-ghost" style={{ left: drag.x + 12, top: drag.y + 12 }}>
+          {drag.over ? `Move ${plural(drag.count, "item")} to ${fileName(drag.over)}` : plural(drag.count, "item")}
+        </div>
+      )}
+      {peeking && (
+        <PreviewSheet
+          files={kindFiles}
+          path={peeking}
+          onPath={(p) => (setPeeking(p), setSelected(new Set([p])))}
+          onClose={() => (setPeeking(null), root.current?.focus())}
+          onOpen={(p) => api.launch(p).catch(toastError)}
+        />
+      )}
+      {batchRename && (
+        <RenameSheet
+          paths={batchRename}
+          onClose={() => (setBatchRename(null), root.current?.focus())}
+          onDone={() => (setBatchRename(null), refresh())}
+        />
+      )}
+      {cleaning && (
+        <CleanupSheet
+          dir={loc.path}
+          binName={binName}
+          onClose={() => (setCleaning(false), root.current?.focus())}
+          onTrash={(paths) => (setCleaning(false), void doTrash(paths))}
+        />
+      )}
       {confirmTrash && (
         <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label={`Move to ${binName}`} onMouseDown={(e) => e.target === e.currentTarget && setConfirmTrash(null)}>
           <div className="modal confirm-card">
@@ -726,6 +913,8 @@ interface ItemProps {
   onSelect: (e: React.MouseEvent) => void;
   onOpen: () => void;
   onMenu: (e: React.MouseEvent) => void;
+  onMouseDown: (e: React.MouseEvent) => void;
+  dropTarget: boolean;
   onRename: (name: string) => void;
   onCancelRename: () => void;
 }
@@ -767,13 +956,15 @@ function RenameField({ initial, onRename, onCancel }: { initial: string; onRenam
   );
 }
 
-function Tile({ entry, size, icon, thumb, selected, cut, renaming, onSelect, onOpen, onMenu, onRename, onCancelRename }: ItemProps) {
+function Tile({ entry, size, icon, thumb, selected, cut, renaming, onSelect, onOpen, onMenu, onMouseDown, dropTarget, onRename, onCancelRename }: ItemProps) {
   const d = describe(entry, size);
   return (
     <div
       role="button"
       tabIndex={0}
-      className={`bz-tile ${entry.type}${selected ? " selected" : ""}${cut ? " cut" : ""}`}
+      className={`bz-tile ${entry.type}${selected ? " selected" : ""}${cut ? " cut" : ""}${dropTarget ? " drop" : ""}`}
+      data-folder={entry.type === "folder" ? entry.item.path : undefined}
+      onMouseDown={onMouseDown}
       title={renaming ? undefined : d.title}
       onClick={onSelect}
       onDoubleClick={onOpen}
@@ -794,14 +985,16 @@ function Tile({ entry, size, icon, thumb, selected, cut, renaming, onSelect, onO
   );
 }
 
-function Row({ entry, size, icon, thumb, selected, cut, renaming, onSelect, onOpen, onMenu, onRename, onCancelRename }: ItemProps) {
+function Row({ entry, size, icon, thumb, selected, cut, renaming, onSelect, onOpen, onMenu, onMouseDown, dropTarget, onRename, onCancelRename }: ItemProps) {
   const d = describe(entry, size);
   const kind = entry.type === "kind" ? kindOf(entry.key) : null;
   return (
     <div
       role="listitem"
       tabIndex={0}
-      className={`bz-row${selected ? " selected" : ""}${cut ? " cut" : ""}`}
+      className={`bz-row${selected ? " selected" : ""}${cut ? " cut" : ""}${dropTarget ? " drop" : ""}`}
+      data-folder={entry.type === "folder" ? entry.item.path : undefined}
+      onMouseDown={onMouseDown}
       title={renaming ? undefined : d.title}
       onClick={onSelect}
       onDoubleClick={onOpen}

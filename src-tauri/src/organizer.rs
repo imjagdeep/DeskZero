@@ -387,7 +387,8 @@ pub fn status(g: &Inner) -> Status {
     let today = chrono::Local::now().date_naive();
     let organized_today = sf_engine::history::read(&g.cfg.history_path())
         .iter()
-        .filter(|e| e.kind == HistoryKind::Move)
+        // Organizer batches only, not the browser's renames and moves.
+        .filter(|e| e.kind == HistoryKind::Move && e.label.is_none())
         .filter(|e| e.ts.with_timezone(&chrono::Local).date_naive() == today)
         .map(|e| e.items.len())
         .sum();
