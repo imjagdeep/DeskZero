@@ -69,7 +69,7 @@ pub fn suggest(dir: &Path) -> io::Result<Vec<Group>> {
             path,
         });
     }
-    files.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    files.sort_by_cached_key(|f| f.name.to_lowercase());
 
     let mut unfinished = Vec::new();
     let mut installers = Vec::new();
@@ -117,7 +117,9 @@ fn item(f: &Entry, reason: &str) -> Suggestion {
 /// the others are suggested. Only same-size files are hashed.
 fn duplicates(files: &[Entry]) -> Vec<Suggestion> {
     let mut by_size: HashMap<u64, Vec<&Entry>> = HashMap::new();
-    for f in files.iter().filter(|f| f.size > 0) {
+    // Downloads still in progress (or abandoned) are not copies of anything.
+    let partial = |f: &Entry| PARTIAL.contains(&extension_of(&f.name).as_str());
+    for f in files.iter().filter(|f| f.size > 0 && !partial(f)) {
         by_size.entry(f.size).or_default().push(f);
     }
     let mut out = Vec::new();
@@ -164,7 +166,9 @@ mod tests {
         let d = tmp.path();
         fs::write(d.join("movie.mp4.crdownload"), b"x").unwrap();
         age(&d.join("movie.mp4.crdownload"), 3);
-        fs::write(d.join("fresh.part"), b"x").unwrap(); // still downloading
+        // Still downloading; same bytes as the other partial, which must not
+        // make them "duplicates".
+        fs::write(d.join("fresh.part"), b"x").unwrap();
         fs::write(d.join("setup.exe"), b"installer").unwrap();
         age(&d.join("setup.exe"), 60);
         fs::write(d.join("new-setup.msi"), b"new").unwrap();
