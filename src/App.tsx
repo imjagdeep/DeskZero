@@ -12,15 +12,12 @@ import { api } from "./lib/api";
 import { fileName } from "./lib/format";
 import { openPreview, refreshStatus, startStores, toastError, useConfig } from "./lib/store";
 import type { Drive, Place } from "./lib/types";
+import { startUndo } from "./lib/undo";
 import { checkAndDownload, dailyCheckDue } from "./lib/updates";
 import { Browse, type Location } from "./pages/Browse";
-import { Cleanup } from "./pages/Cleanup";
 import { History } from "./pages/History";
-import { Home } from "./pages/Home";
-import { Rules } from "./pages/Rules";
+import { Organizer } from "./pages/Organizer";
 import { Settings } from "./pages/Settings";
-import { Duplicates, Rename, Search } from "./pages/Tools";
-import { WatchFolders } from "./pages/WatchFolders";
 import { ShellDialogs } from "./shell/Dialogs";
 import { TopBar } from "./shell/TopBar";
 import { applySavedZoom } from "./shell/shell";
@@ -50,6 +47,7 @@ export default function App() {
 
   useEffect(() => {
     startStores();
+    startUndo();
 
     // Files from the right-click menu. Explorer starts one launch per
     // selected file, so collect them briefly into one preview.
@@ -203,13 +201,7 @@ export default function App() {
               settings={cfg.settings}
             />
           )}
-          {page === "home" && <Home />}
-          {page === "watch" && <WatchFolders />}
-          {page === "rules" && <Rules />}
-          {page === "search" && <Search />}
-          {page === "duplicates" && <Duplicates />}
-          {page === "rename" && <Rename />}
-          {page === "cleanup" && <Cleanup />}
+          {page === "home" && <Organizer />}
           {page === "history" && <History />}
           {page === "settings" && <Settings />}
         </main>

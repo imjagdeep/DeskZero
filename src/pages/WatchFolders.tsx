@@ -29,7 +29,7 @@ export function WatchFolders() {
 
   return (
     <div className="page">
-      <PageHeader title="Watch Folders">
+      <PageHeader title="Watch folders">
         <button className="primary" onClick={add}>Add folder…</button>
       </PageHeader>
       <p className="muted">
@@ -38,7 +38,7 @@ export function WatchFolders() {
           ? " Files no rule matches are filed by type into your DeskZero (png → Images, exe → Installers)."
           : " Files no rule matches stay where they are."}
         {" Use “Sort what's here…” for files that were already there."}
-        {s.confirm_before_move ? " You confirm each batch on the Home page." : " Moves happen automatically."}
+        {s.confirm_before_move ? " You confirm each batch on the Overview tab." : " Moves happen automatically."}
       </p>
       {s.watch_folders.length === 0 && (
         <EmptyState icon={<WatchIcon size={30} />} title="No watch folders yet">

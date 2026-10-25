@@ -375,8 +375,6 @@ input.bz-rename:not([type="checkbox"]) {
 .confirm-card { width: min(440px, 92vw); }
 .confirm-card h2 { word-break: break-word; }
 
-.settings-tabs { margin: 4px 0 14px; }
-.settings-tabs button { padding: 0 14px; }
 
 /* ---------- 0.8: drag and drop, preview, clean up ---------- */
 .bz-tile.drop, .bz-row.drop { background: var(--bz-select); box-shadow: 0 0 0 2px var(--bz-select-ring); }

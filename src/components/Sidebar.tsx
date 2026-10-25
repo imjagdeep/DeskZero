@@ -4,62 +4,34 @@ import { fileName, humanSize } from "../lib/format";
 import type { Drive, Place, PlaceId } from "../lib/types";
 import { SideNav, type NavGroup } from "../shell/SideNav";
 import {
-  BroomIcon,
   DesktopIcon,
   DocumentIcon,
   DownloadIcon,
   DriveIcon,
-  FolderIcon,
   FilmIcon,
-  ImageIcon,
-  MusicIcon,
-  DuplicatesIcon,
+  FolderIcon,
   HistoryIcon,
   HomeIcon,
-  RenameIcon,
-  RulesIcon,
-  SearchIcon,
+  ImageIcon,
+  MusicIcon,
   SettingsIcon,
   SparkleIcon,
   UsbIcon,
-  WatchIcon,
 } from "./Icons";
 
-export type Page =
-  | "browse"
-  | "home"
-  | "watch"
-  | "rules"
-  | "search"
-  | "duplicates"
-  | "rename"
-  | "cleanup"
-  | "history"
-  | "settings";
+export type Page = "browse" | "home" | "history" | "settings";
 
 /** The pages in sidebar order (the Tools menu and Ctrl+1… use it too). */
 export const PAGES: { page: Page; label: string; group: string }[] = [
   { page: "browse", label: "Files", group: "Places" },
-  { page: "home", label: "Organizer", group: "Organize" },
-  { page: "watch", label: "Watch Folders", group: "Organize" },
-  { page: "rules", label: "Rules", group: "Organize" },
-  { page: "search", label: "Search", group: "Tools" },
-  { page: "duplicates", label: "Duplicates", group: "Tools" },
-  { page: "rename", label: "Rename", group: "Tools" },
-  { page: "cleanup", label: "Cleanup", group: "Tools" },
-  { page: "history", label: "History & Undo", group: "App" },
-  { page: "settings", label: "Settings", group: "App" },
+  { page: "home", label: "Organizer", group: "DeskZero" },
+  { page: "history", label: "History", group: "DeskZero" },
+  { page: "settings", label: "Settings", group: "DeskZero" },
 ];
 
 const ICONS: Record<Page, (p: { size?: number }) => React.ReactElement> = {
   browse: DownloadIcon,
   home: SparkleIcon,
-  watch: WatchIcon,
-  rules: RulesIcon,
-  search: SearchIcon,
-  duplicates: DuplicatesIcon,
-  rename: RenameIcon,
-  cleanup: BroomIcon,
   history: HistoryIcon,
   settings: SettingsIcon,
 };

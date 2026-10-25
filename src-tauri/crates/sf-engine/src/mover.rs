@@ -37,6 +37,19 @@ pub fn execute(
     op_counter: &mut u64,
     ask: AskResolution,
 ) -> io::Result<ExecuteResult> {
+    execute_labeled(plan, history_path, quarantine_dir, op_counter, ask, None)
+}
+
+/// `execute` for the file browser: the batch is recorded with a label
+/// ("Moved") so History shows what the user did, not "Organized".
+pub fn execute_labeled(
+    plan: &[PlannedOp],
+    history_path: &Path,
+    quarantine_dir: &Path,
+    op_counter: &mut u64,
+    ask: AskResolution,
+    label: Option<&str>,
+) -> io::Result<ExecuteResult> {
     let mut items: Vec<HistoryItem> = Vec::new();
     let mut quarantined: Vec<HistoryItem> = Vec::new();
     let mut failed: Vec<FailedItem> = Vec::new();
@@ -81,6 +94,7 @@ pub fn execute(
         items,
         quarantined,
         failed,
+        label: label.map(String::from),
     };
     if !entry.items.is_empty() || !entry.failed.is_empty() {
         history::append(history_path, &entry)?;
@@ -154,6 +168,7 @@ pub fn undo_with_cleanup(
         items: restored,
         quarantined: Vec::new(),
         failed,
+        label: None,
     };
     history::append(history_path, &undo_entry)?;
     Ok(undo_entry)

@@ -1,7 +1,8 @@
 // "Clean up this folder": unfinished downloads, old installers, duplicate
-// copies and very large files in the open folder. Everything ticked goes to
-// the Trash / Recycle Bin (restorable, and Ctrl/Cmd+Z undoes it). Very large
-// files are listed but not ticked: big doesn't mean unwanted.
+// copies and very large files in the open folder (optionally its
+// sub-folders too, and files not changed for a while). Everything ticked
+// goes to the Trash / Recycle Bin (restorable, and Ctrl/Cmd+Z undoes it).
+// Very large and merely old files are listed but not ticked.
 
 import { useEffect, useMemo, useState } from "react";
 import { api, errorText } from "../lib/api";
@@ -22,16 +23,25 @@ export function CleanupSheet({
   const [groups, setGroups] = useState<CleanGroup[] | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [ticked, setTicked] = useState<Set<string>>(new Set());
+  const [subFolders, setSubFolders] = useState(false);
+  const [unusedDays, setUnusedDays] = useState<number | null>(null);
 
   useEffect(() => {
+    let live = true;
+    setGroups(null);
+    setError(null);
     api
-      .cleanupSuggestions(dir)
+      .cleanupSuggestions(dir, { sub_folders: subFolders, unused_days: unusedDays })
       .then((g) => {
+        if (!live) return;
         setGroups(g);
-        setTicked(new Set(g.filter((x) => x.id !== "large").flatMap((x) => x.items.map((i) => i.path))));
+        setTicked(new Set(g.filter((x) => x.id !== "large" && x.id !== "unused").flatMap((x) => x.items.map((i) => i.path))));
       })
-      .catch((e) => setError(errorText(e)));
-  }, [dir]);
+      .catch((e) => live && setError(errorText(e)));
+    return () => {
+      live = false;
+    };
+  }, [dir, subFolders, unusedDays]);
 
   useEffect(() => {
     const key = (e: KeyboardEvent) => e.key === "Escape" && (e.preventDefault(), onClose());
@@ -55,8 +65,24 @@ export function CleanupSheet({
     <div className="modal-backdrop" role="dialog" aria-modal="true" aria-label="Clean up this folder" onMouseDown={(e) => e.target === e.currentTarget && onClose()}>
       <div className="modal cleanup-card">
         <h2>Clean up {fileName(dir.replace(/[\\/]+$/, "")) || dir}</h2>
+        <div className="cleanup-options">
+          <label className="check">
+            <input type="checkbox" checked={subFolders} onChange={(e) => setSubFolders(e.target.checked)} />
+            <span>Include sub-folders</span>
+          </label>
+          <label className="field">
+            <span>Also files not changed in</span>
+            <select value={unusedDays ?? ""} onChange={(e) => setUnusedDays(e.target.value ? Number(e.target.value) : null)}>
+              <option value="">(don't look)</option>
+              <option value="30">30 days</option>
+              <option value="90">90 days</option>
+              <option value="180">6 months</option>
+              <option value="365">a year</option>
+            </select>
+          </label>
+        </div>
         {error && <p className="error-text">{error}</p>}
-        {!groups && !error && <p className="muted">Looking through this folder…</p>}
+        {!groups && !error && <p className="muted">Looking through {subFolders ? "this folder and its sub-folders" : "this folder"}…</p>}
         {groups && groups.length === 0 && <p className="muted">Nothing to clean up here. This folder looks tidy.</p>}
         {groups?.map((g) => {
           const paths = g.items.map((i) => i.path);

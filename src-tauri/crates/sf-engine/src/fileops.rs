@@ -4,6 +4,7 @@
 //! undone. Nothing here deletes permanently.
 
 use crate::fsutil::free_target;
+use crate::types::{PlanStatus, PlannedOp};
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -141,38 +142,49 @@ fn copy_dir(src: &Path, target: &Path) -> io::Result<()> {
     Ok(())
 }
 
-/// Move folders into `dest` by renaming them. Only within one drive: moving
-/// a folder between drives would mean copy-then-delete, which DeskZero
-/// doesn't do on its own.
-pub fn move_folders_into(srcs: &[PathBuf], dest: &Path) -> Outcome {
-    let mut out = Outcome::default();
-    for src in srcs {
-        let res = (|| {
-            let name = src
-                .file_name()
-                .ok_or_else(|| invalid(format!("{} can't be moved", src.display())))?;
-            if dest.starts_with(src) {
-                return Err(invalid("a folder can't be moved into itself".into()));
-            }
+/// Plan moving files and folders into `dest` for the mover (which records
+/// History, so the move can be undone). Name clashes get "name (1)"; a
+/// folder never goes inside itself; items already in `dest` stay put.
+pub fn plan_move(srcs: &[PathBuf], dest: &Path) -> Vec<PlannedOp> {
+    let mut claimed: Vec<PathBuf> = Vec::new();
+    srcs.iter()
+        .map(|src| {
+            let size = fs::symlink_metadata(src).map(|m| m.len()).unwrap_or(0);
+            let status = |status| PlannedOp {
+                src: src.clone(),
+                dst: src.clone(),
+                status,
+                rule_id: None,
+                rule_name: None,
+                size_bytes: size,
+            };
+            let Some(name) = src.file_name() else {
+                return status(PlanStatus::Skip {
+                    reason: "can't be moved".into(),
+                });
+            };
             if src.parent() == Some(dest) {
-                return Ok(src.clone());
+                return status(PlanStatus::Noop);
             }
-            let target = free_target(&dest.join(name), &[])?;
-            fs::rename(src, &target).map_err(|e| {
-                if e.raw_os_error() == Some(if cfg!(windows) { 17 } else { 18 }) {
-                    invalid("folders can't be moved to another drive yet; copy it instead".into())
-                } else {
-                    e
+            if src.is_dir() && dest.starts_with(src) {
+                return status(PlanStatus::Skip {
+                    reason: "a folder can't be moved into itself".into(),
+                });
+            }
+            match free_target(&dest.join(name), &claimed) {
+                Ok(dst) => {
+                    claimed.push(dst.clone());
+                    PlannedOp {
+                        dst,
+                        ..status(PlanStatus::Move { replace: false })
+                    }
                 }
-            })?;
-            Ok(target)
-        })();
-        match res {
-            Ok(p) => out.done.push(p),
-            Err(e) => out.failed.push((src.clone(), e.to_string())),
-        }
-    }
-    out
+                Err(e) => status(PlanStatus::Skip {
+                    reason: e.to_string(),
+                }),
+            }
+        })
+        .collect()
 }
 
 /// Move items to the Trash / Recycle Bin, where they can be restored.
@@ -328,18 +340,23 @@ mod tests {
     }
 
     #[test]
-    fn move_folders_renames_and_refuses_self_nesting() {
+    fn plan_move_handles_folders_clashes_and_self_nesting() {
         let tmp = tempfile::tempdir().unwrap();
         let a = tmp.path().join("a");
         let b = tmp.path().join("b");
         fs::create_dir_all(a.join("deep")).unwrap();
         fs::create_dir_all(&b).unwrap();
-        let out = move_folders_into(std::slice::from_ref(&a), &b);
-        assert!(out.failed.is_empty(), "{:?}", out.failed);
-        assert!(b.join("a/deep").is_dir());
-        assert!(!a.exists());
+        fs::write(b.join("x.txt"), b"old").unwrap();
+        fs::write(tmp.path().join("x.txt"), b"new").unwrap();
 
-        let nested = move_folders_into(&[b.clone()], &b.join("a"));
-        assert_eq!(nested.failed.len(), 1);
+        let ops = plan_move(&[a.clone(), tmp.path().join("x.txt")], &b);
+        assert_eq!(ops[0].status, PlanStatus::Move { replace: false });
+        assert_eq!(ops[0].dst, b.join("a"));
+        assert_eq!(ops[1].dst, b.join("x (1).txt"));
+
+        let nested = plan_move(std::slice::from_ref(&a), &a.join("deep"));
+        assert!(matches!(nested[0].status, PlanStatus::Skip { .. }));
+        let same = plan_move(&[b.join("x.txt")], &b);
+        assert_eq!(same[0].status, PlanStatus::Noop);
     }
 }

@@ -133,6 +133,8 @@ fn cmd_history() -> Result<(), String> {
         let kind = match e.kind {
             sf_engine::HistoryKind::Move => "MOVE",
             sf_engine::HistoryKind::Undo => "UNDO",
+            sf_engine::HistoryKind::Created => "MADE",
+            sf_engine::HistoryKind::Trashed => "TRASH",
         };
         println!(
             "{} {}  {} ok, {} failed  {}",

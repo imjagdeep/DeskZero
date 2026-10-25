@@ -17,6 +17,12 @@ const MAX_HISTORY_BYTES: u64 = 5 * 1024 * 1024;
 pub enum HistoryKind {
     Move,
     Undo,
+    /// Things the file browser made (new folders, copies). Undo moves them
+    /// to the Trash. `src` and `dst` are both the new path.
+    Created,
+    /// Things moved to the Trash from the browser. Undo puts them back
+    /// (Windows and Linux). `src` and `dst` are both the original path.
+    Trashed,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -39,6 +45,10 @@ pub struct HistoryEntry {
     pub quarantined: Vec<HistoryItem>,
     #[serde(default)]
     pub failed: Vec<FailedItem>,
+    /// What the user did, for the History list ("Renamed", "Copied"…).
+    /// None for organizer batches.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub label: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -147,6 +157,7 @@ mod tests {
             }],
             quarantined: Vec::new(),
             failed: Vec::new(),
+            label: None,
         }
     }
 

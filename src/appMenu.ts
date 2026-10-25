@@ -9,6 +9,8 @@ import { openPreview, refreshConfig, refreshStatus, toast, toastError, useConfig
 import type { Theme } from "./lib/types";
 import { canUndo, undoLast } from "./lib/undo";
 import { checkAndDownload } from "./lib/updates";
+import { focusBrowserSearch } from "./pages/Browse";
+import { showOrganizerTab } from "./pages/Organizer";
 import { exportRulesFile, importRulesFile } from "./pages/Rules";
 import type { MenuDef } from "./shell/menu";
 import {
@@ -74,7 +76,8 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
             if (settings.watch_folders.some((w) => w.path === p)) return toast("That folder is already watched");
             await api.saveSettings({ ...settings, watch_folders: [...settings.watch_folders, { path: p, enabled: true }] });
             await refreshConfig();
-            go("watch");
+            showOrganizerTab("watch");
+            go("home");
             toast("Watching it now");
           },
         },
@@ -118,7 +121,8 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
         { id: "select-all", label: "Select all", accel: "Mod+A", native: "selectAll", hidden: true, run: () => editCommand("selectAll") },
         "-",
         { id: "undo-batch", label: "Undo an organize…", run: () => go("history") },
-        { id: "find", label: "Find files…", accel: "Mod+F", run: () => go("search") },
+        // Search lives in the file browser's search box now.
+        { id: "find", label: "Find files…", accel: "Mod+F", run: () => (go("browse"), focusBrowserSearch()) },
       ],
     };
 

@@ -316,12 +316,42 @@ pub async fn undo_batch(app: AppHandle, id: String) -> CmdResult<RunSummary> {
         let hist = g.cfg.history_path();
         let entry = sf_engine::history::read(&hist)
             .into_iter()
-            .find(|e| e.id == id && e.kind == HistoryKind::Move)
+            .find(|e| e.id == id && e.kind != HistoryKind::Undo)
             .ok_or("that batch is no longer in the history")?;
         let mut counter = g.counter;
-        let protect = protected_folders(&g.cfg.settings);
-        let undo = sf_engine::mover::undo_with_cleanup(&entry, &hist, &mut counter, &protect)
-            .map_err(|e| e.to_string())?;
+        let undo = match entry.kind {
+            // Organizer batches also tidy the folders they emptied; the
+            // browser's own moves and renames leave folders alone.
+            HistoryKind::Move if entry.label.is_none() => {
+                let protect = protected_folders(&g.cfg.settings);
+                sf_engine::mover::undo_with_cleanup(&entry, &hist, &mut counter, &protect)
+            }
+            HistoryKind::Move => sf_engine::mover::undo(&entry, &hist, &mut counter),
+            HistoryKind::Created | HistoryKind::Trashed => {
+                let paths: Vec<PathBuf> = entry.items.iter().map(|i| i.src.clone()).collect();
+                if entry.kind == HistoryKind::Created {
+                    // What the browser made goes to the Trash, so even this
+                    // undo can be taken back.
+                    let still: Vec<PathBuf> = paths.into_iter().filter(|p| p.exists()).collect();
+                    sf_engine::fileops::trash(&still)?;
+                } else {
+                    sf_engine::fileops::restore_from_trash(&paths)?;
+                }
+                counter += 1;
+                let undo = HistoryEntry {
+                    id: sf_engine::history::new_op_id(counter),
+                    ts: chrono::Utc::now(),
+                    kind: HistoryKind::Undo,
+                    items: entry.items.clone(),
+                    quarantined: Vec::new(),
+                    failed: Vec::new(),
+                    label: None,
+                };
+                sf_engine::history::append(&hist, &undo).map(|()| undo)
+            }
+            HistoryKind::Undo => return Err("an undo can't be undone".into()),
+        }
+        .map_err(|e| e.to_string())?;
         g.counter = counter;
         Ok(RunSummary {
             moved: undo.items.len(),
@@ -339,6 +369,89 @@ pub async fn undo_batch(app: AppHandle, id: String) -> CmdResult<RunSummary> {
     .await?;
     let _ = app.emit("history-changed", ());
     organizer::emit_status(&app);
+    Ok(summary)
+}
+
+/// Record something the file browser did, so History lists it and can undo
+/// it: a single rename (`move`), new folders or copies (`created`), or
+/// items moved to the Trash (`trashed`).
+#[tauri::command]
+pub fn record_action(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    kind: HistoryKind,
+    label: String,
+    items: Vec<sf_engine::history::HistoryItem>,
+) -> CmdResult<()> {
+    if kind == HistoryKind::Undo || items.is_empty() {
+        return Err("nothing to record".into());
+    }
+    let mut g = state.lock();
+    g.counter += 1;
+    let entry = HistoryEntry {
+        id: sf_engine::history::new_op_id(g.counter),
+        ts: chrono::Utc::now(),
+        kind,
+        items,
+        quarantined: Vec::new(),
+        failed: Vec::new(),
+        label: Some(label),
+    };
+    sf_engine::history::append(&g.cfg.history_path(), &entry)
+        .map_err(|e| format!("couldn't record it in History: {e}"))?;
+    drop(g);
+    let _ = app.emit("history-changed", ());
+    Ok(())
+}
+
+/// Move files and folders into `dest` from the browser, through the mover
+/// so History records the batch ("Moved") and can undo it.
+#[tauri::command]
+pub async fn move_items(
+    app: AppHandle,
+    paths: Vec<PathBuf>,
+    dest: PathBuf,
+) -> CmdResult<RunSummary> {
+    let app2 = app.clone();
+    let summary = blocking(move || {
+        let plan = sf_engine::fileops::plan_move(&paths, &dest);
+        let state = app2.state::<AppState>();
+        let mut g = state.lock();
+        let quarantine = g.cfg.data_dir.join("quarantine");
+        let mut counter = g.counter;
+        let result = sf_engine::mover::execute_labeled(
+            &plan,
+            &g.cfg.history_path(),
+            &quarantine,
+            &mut counter,
+            sf_engine::mover::AskResolution::Skip,
+            Some("Moved"),
+        )
+        .map_err(|e| e.to_string())?;
+        g.counter = counter;
+        Ok(RunSummary {
+            moved: result.entry.items.len(),
+            failed: result
+                .entry
+                .failed
+                .iter()
+                .map(|f| organizer::FailedDto {
+                    path: f.src.clone(),
+                    error: f.error.clone(),
+                })
+                .chain(plan.iter().filter_map(|op| match &op.status {
+                    sf_engine::types::PlanStatus::Skip { reason } => Some(organizer::FailedDto {
+                        path: op.src.clone(),
+                        error: reason.clone(),
+                    }),
+                    _ => None,
+                }))
+                .collect(),
+            skipped: result.skipped.len(),
+        })
+    })
+    .await?;
+    let _ = app.emit("history-changed", ());
     Ok(summary)
 }
 
@@ -414,23 +527,17 @@ pub struct RenameDto {
     reason: Option<String>,
 }
 
-/// Top-level files of a folder, sorted: the same input the CLI uses so
-/// {counter} numbering is predictable.
-fn folder_files(folder: &PathBuf) -> CmdResult<Vec<PathBuf>> {
-    let mut paths: Vec<PathBuf> = std::fs::read_dir(folder)
-        .map_err(|e| format!("cannot read {}: {e}", folder.display()))?
-        .flatten()
-        .map(|e| e.path())
-        .filter(|p| p.is_file())
-        .collect();
+/// The files among `paths`, sorted, so {counter} numbering is predictable.
+fn sorted_files(mut paths: Vec<PathBuf>) -> Vec<PathBuf> {
+    paths.retain(|p| p.is_file());
     paths.sort();
-    Ok(paths)
+    paths
 }
 
 #[tauri::command]
-pub async fn rename_preview(folder: PathBuf, template: String) -> CmdResult<Vec<RenameDto>> {
+pub async fn rename_preview(paths: Vec<PathBuf>, template: String) -> CmdResult<Vec<RenameDto>> {
     blocking(move || {
-        let ops = sf_engine::renamer::plan_rename(&folder_files(&folder)?, &template)
+        let ops = sf_engine::renamer::plan_rename(&sorted_files(paths), &template)
             .map_err(|e| e.to_string())?;
         Ok(ops
             .into_iter()
@@ -448,12 +555,12 @@ pub async fn rename_preview(folder: PathBuf, template: String) -> CmdResult<Vec<
 #[tauri::command]
 pub async fn rename_apply(
     app: AppHandle,
-    folder: PathBuf,
+    paths: Vec<PathBuf>,
     template: String,
 ) -> CmdResult<RunSummary> {
     let app2 = app.clone();
     let summary = blocking(move || {
-        let ops = sf_engine::renamer::plan_rename(&folder_files(&folder)?, &template)
+        let ops = sf_engine::renamer::plan_rename(&sorted_files(paths), &template)
             .map_err(|e| e.to_string())?;
         let (n, failed) = sf_engine::renamer::apply_rename(&ops);
 
@@ -478,6 +585,7 @@ pub async fn rename_apply(
                 items,
                 quarantined: Vec::new(),
                 failed: Vec::new(),
+                label: Some("Renamed".into()),
             };
             sf_engine::history::append(&g.cfg.history_path(), &entry)
                 .map_err(|e| format!("renamed, but could not record history: {e}"))?;
@@ -729,16 +837,6 @@ pub async fn copy_items(
     blocking(move || Ok(sf_engine::fileops::copy_into(&paths, &dest))).await
 }
 
-/// Folders only: files are moved through plan_move_into + execute_plan so
-/// they land in History and can be undone.
-#[tauri::command]
-pub async fn move_folders(
-    paths: Vec<PathBuf>,
-    dest: PathBuf,
-) -> CmdResult<sf_engine::fileops::Outcome> {
-    blocking(move || Ok(sf_engine::fileops::move_folders_into(&paths, &dest))).await
-}
-
 #[tauri::command]
 pub async fn trash_items(paths: Vec<PathBuf>) -> CmdResult<()> {
     blocking(move || sf_engine::fileops::trash(&paths)).await
@@ -825,8 +923,11 @@ pub async fn remove_empty_folder(path: PathBuf) -> CmdResult<()> {
 }
 
 #[tauri::command]
-pub async fn cleanup_suggestions(dir: PathBuf) -> CmdResult<Vec<sf_engine::cleanup::Group>> {
-    blocking(move || sf_engine::cleanup::suggest(&dir).map_err(|e| e.to_string())).await
+pub async fn cleanup_suggestions(
+    dir: PathBuf,
+    options: sf_engine::cleanup::Options,
+) -> CmdResult<Vec<sf_engine::cleanup::Group>> {
+    blocking(move || sf_engine::cleanup::suggest(&dir, options).map_err(|e| e.to_string())).await
 }
 
 /// A large picture for the Space-bar preview, as a data URL.

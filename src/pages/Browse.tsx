@@ -8,6 +8,7 @@ import { useEffect, useId, useMemo, useRef, useState, useSyncExternalStore } fro
 import { CleanupSheet } from "../components/CleanupSheet";
 import { ContextMenu, type MenuItem } from "../components/ContextMenu";
 import { PreviewSheet } from "../components/PreviewSheet";
+import { RenameSheet } from "../components/RenameSheet";
 import {
   AppGridIcon,
   ArchiveIcon,
@@ -33,10 +34,10 @@ import {
   UpIcon,
 } from "../components/Icons";
 import { api, errorText } from "../lib/api";
-import { dateTime, fileName, humanSize, parentDir } from "../lib/format";
+import { dateTime, fileName, humanSize } from "../lib/format";
 import { createStore, openPreview, refreshConfig, toast, toastError, usePreview } from "../lib/store";
 import type { BrowseItem, Category, Outcome, PlannedOp, Settings } from "../lib/types";
-import { canUndo, pushUndo, undoLast, useUndoVersion } from "../lib/undo";
+import { canUndo, record, undoLast, useUndoVersion } from "../lib/undo";
 import { textFieldFocused } from "../shell/shell";
 
 /** Where the browser is: a folder, optionally narrowed to one kind of file. */
@@ -145,6 +146,16 @@ const joinPath = (dir: string, name: string) => {
 const clipStore = createStore<{ mode: "copy" | "cut"; items: { path: string; dir: boolean }[] } | null>(null);
 const useClip = () => useSyncExternalStore(clipStore.subscribe, clipStore.get);
 
+/** Edit › Find files: put the cursor in the search box (the browser may
+ *  still be appearing, so try for a few frames). */
+export function focusBrowserSearch(tries = 10) {
+  const box = document.querySelector<HTMLInputElement>(".bz-filter input");
+  if (box) {
+    box.focus();
+    box.select();
+  } else if (tries > 0) requestAnimationFrame(() => focusBrowserSearch(tries - 1));
+}
+
 const plural = (n: number, one: string) => `${n} ${one}${n === 1 ? "" : "s"}`;
 
 export function Browse({
@@ -184,6 +195,7 @@ export function Browse({
   const [peeking, setPeeking] = useState<string | null>(null);
   const [cleaning, setCleaning] = useState(false);
   const [dropping, setDropping] = useState(false);
+  const [batchRename, setBatchRename] = useState<string[] | null>(null);
   const undoVersion = useUndoVersion();
   const clip = useClip();
   const preview = usePreview();
@@ -247,12 +259,43 @@ export function Browse({
   const folders = visible.filter((i) => i.is_dir);
   const files = visible.filter((i) => !i.is_dir);
   const kindFiles = loc.kind ? files.filter((f) => kindKey(f) === loc.kind) : files;
+  // While searching, matches show as plain files, not inside kind tiles.
+  const shownGrouping: Grouping = needle && grouping === "kind" ? "none" : grouping;
+
+  // Searching also looks inside sub-folders (same words as the old Search
+  // page: *.pdf, type:video, size:>10mb, modified:2026-09…), a moment after
+  // typing stops.
+  const [deep, setDeep] = useState<{ query: string; hits: BrowseItem[] } | null>(null);
+  useEffect(() => {
+    setDeep(null);
+    if (needle.length < 2) return;
+    let live = true;
+    const t = window.setTimeout(() => {
+      api
+        .searchFiles(loc.path, filter.trim())
+        .then((hits) => {
+          if (!live) return;
+          const here = new Set((items ?? []).map((i) => i.path));
+          setDeep({
+            query: needle,
+            hits: hits
+              .filter((h) => !here.has(h.path))
+              .map((h) => ({ name: fileName(h.path), path: h.path, is_dir: false, size_bytes: h.size_bytes, modified: h.modified, category: h.category, children: null })),
+          });
+        })
+        .catch(() => live && setDeep({ query: needle, hits: [] }));
+    }, 300);
+    return () => {
+      live = false;
+      window.clearTimeout(t);
+    };
+  }, [needle, loc.path, items]); // filter is needle untrimmed/uncased
 
   // Real system icons, and previews for pictures, for the files on screen.
   // Fetched once per path; the refs keep known ones out of the dependencies.
   const known = useRef({ icons, thumbs });
   known.current = { icons, thumbs };
-  const onScreen = (loc.kind || grouping !== "kind" ? kindFiles : []).map((f) => f.path);
+  const onScreen = [...(loc.kind || shownGrouping !== "kind" ? kindFiles : []), ...(deep?.hits.slice(0, 120) ?? [])].map((f) => f.path);
   const screenKey = onScreen.join("|");
   useEffect(() => {
     const want = onScreen.filter((p) => !(p in known.current.icons)).slice(0, 240);
@@ -280,20 +323,27 @@ export function Browse({
 
   const sections: { title: string; entries: Entry[] }[] = [];
   if (loc.kind) {
-    if (grouping === "date") pushDateSections(sections, kindFiles);
+    if (shownGrouping === "date") pushDateSections(sections, kindFiles);
     else sections.push({ title: "", entries: kindFiles.map((item) => ({ type: "file", item })) });
   } else {
     if (folders.length) sections.push({ title: "Folders", entries: folders.map((item) => ({ type: "folder", item })) });
-    if (grouping === "kind") {
+    if (shownGrouping === "kind") {
       const groups = new Map<KindKey, BrowseItem[]>();
       for (const f of files) groups.set(kindKey(f), [...(groups.get(kindKey(f)) ?? []), f]);
       const entries: Entry[] = KINDS.filter((k) => groups.has(k.key)).map((k) => ({ type: "kind", key: k.key, files: groups.get(k.key)! }));
       if (entries.length) sections.push({ title: "By kind", entries });
-    } else if (grouping === "date") {
+    } else if (shownGrouping === "date") {
       pushDateSections(sections, files);
     } else if (files.length) {
       sections.push({ title: "Files", entries: files.map((item) => ({ type: "file", item })) });
     }
+  }
+  const deepHits = deep && deep.query === needle ? deep.hits : [];
+  if (deepHits.length) {
+    sections.push({
+      title: deepHits.length >= 2000 ? "In sub-folders (first 2000)" : "In sub-folders",
+      entries: deepHits.map((item) => ({ type: "file", item })),
+    });
   }
   const flat = sections.flatMap((s) => s.entries);
   /** Selected real files and folders (kind groups are only a view). */
@@ -345,7 +395,7 @@ export function Browse({
     try {
       const name = platform === "macos" ? "untitled folder" : platform === "windows" ? "New folder" : "New Folder";
       const made = await api.newFolder(loc.path, name);
-      pushUndo({ kind: "new-folder", path: made });
+      void record({ kind: "created", label: "New folder", paths: [made] });
       if (loc.kind) go({ path: loc.path, kind: null });
       refresh();
       setSelected(new Set([made]));
@@ -361,7 +411,7 @@ export function Browse({
     if (!name.trim() || name === item.name) return;
     try {
       const to = await api.renameItem(item.path, name);
-      pushUndo({ kind: "rename", from: item.path, to });
+      void record({ kind: "rename", from: item.path, to });
       setSelected(new Set([to]));
       refresh();
     } catch (e) {
@@ -380,34 +430,16 @@ export function Browse({
 
   async function copyInto(paths: string[], dest: string) {
     const r = await api.copyItems(paths, dest);
-    if (r.done.length) pushUndo({ kind: "copy", created: r.done });
+    if (r.done.length) void record({ kind: "created", label: "Copied", paths: r.done });
     report("copied", r);
   }
 
-  /** Files through the organizer's mover, folders by renaming; undoable. */
+  /** Files and folders through the mover: History records it ("Moved"). */
   async function moveInto(list: { path: string; dir: boolean }[], dest: string) {
-    const pairs: { from: string; to: string; dir: boolean }[] = [];
-    const failed: [string, string][] = [];
-    const fileList = list.filter((i) => !i.dir && parentDir(i.path) !== dest).map((i) => i.path);
-    const dirs = list.filter((i) => i.dir && i.path !== dest && parentDir(i.path) !== dest).map((i) => i.path);
-    if (fileList.length) {
-      const plan = await api.planMoveInto(fileList, dest);
-      const r = await api.executePlan(plan);
-      const bad = new Set(r.failed.map((f) => f.path));
-      for (const op of plan) {
-        if (typeof op.status === "object" && "move" in op.status && !bad.has(op.src)) pairs.push({ from: op.src, to: op.dst, dir: false });
-      }
-      failed.push(...r.failed.map((f) => [f.path, f.error] as [string, string]));
-    }
-    if (dirs.length) {
-      const r = await api.moveFolders(dirs, dest);
-      const bad = new Set(r.failed.map(([p]) => p));
-      dirs.filter((d) => !bad.has(d)).forEach((from, i) => r.done[i] && pairs.push({ from, to: r.done[i], dir: true }));
-      failed.push(...r.failed);
-    }
-    if (pairs.length) pushUndo({ kind: "move", pairs });
-    report("moved", { done: pairs.map((p) => p.to), failed });
+    const r = await api.moveItems(list.map((i) => i.path), dest);
+    report("moved", { done: new Array<string>(r.moved).fill(dest), failed: r.failed.map((f) => [f.path, f.error] as [string, string]) });
   }
+
 
   /** DeskZero's own cut/copy first; otherwise files copied in Explorer or
    *  Finder (those are copied in, never moved). */
@@ -444,7 +476,7 @@ export function Browse({
     setConfirmTrash(null);
     try {
       await api.trashItems(paths);
-      pushUndo({ kind: "trash", paths });
+      void record({ kind: "trashed", paths });
       toast(`${plural(paths.length, "item")} moved to the ${binName}`);
       setSelected(new Set());
     } catch (e) {
@@ -503,7 +535,7 @@ export function Browse({
       }
       list.push(
         "-",
-        { label: "Rename", accel: "F2", disabled: many.length > 1, run: () => setRenaming(one.path) },
+        { label: many.length > 1 ? `Rename ${many.length} items…` : "Rename", accel: "F2", run: () => (many.length > 1 ? setBatchRename(many.filter((m) => !m.is_dir).map((m) => m.path)) : setRenaming(one.path)) },
         { label: "Copy", accel: "Mod+C", run: () => copyOrCut("copy", many) },
         { label: "Cut", accel: "Mod+X", run: () => copyOrCut("cut", many) },
         { label: "Copy path", run: () => void copyPath(one.path) },
@@ -620,6 +652,7 @@ export function Browse({
     if (mod && key === "a") return void (handled(), setSelected(new Set(flat.map(entryId))));
     if (e.key === "F5") return void (handled(), refresh());
     if (e.key === "F2" && targets.length === 1) return void (handled(), setRenaming(targets[0].path));
+    if (e.key === "F2" && targets.length > 1) return void (handled(), setBatchRename(targets.filter((t) => !t.is_dir).map((t) => t.path)));
     if (e.key === " " && targets.length === 1 && !targets[0].is_dir) return void (handled(), peek(targets[0]));
     if ((e.key === "Delete" || (mac && mod && e.key === "Backspace")) && targets.length) {
       return void (handled(), askTrash(targets.map((t) => t.path)));
@@ -722,8 +755,9 @@ export function Browse({
             <input
               value={filter}
               onChange={(e) => setFilter(e.target.value)}
-              placeholder={`Filter ${loc.kind ? kindOf(loc.kind).label : trail[trail.length - 1]?.label ?? "folder"}`}
-              aria-label="Filter this folder"
+              placeholder={`Search ${loc.kind ? kindOf(loc.kind).label : trail[trail.length - 1]?.label ?? "folder"}`}
+              aria-label="Search this folder and its sub-folders"
+              title="Name, *.pdf, type:video, size:>10mb, modified:2026-09"
               spellCheck={false}
             />
           </label>
@@ -737,9 +771,9 @@ export function Browse({
       >
         {error && <p className="error-text bz-msg">{error}</p>}
         {!error && items && flat.length === 0 && (
-          <p className="muted bz-msg">{needle ? "Nothing here matches the filter." : "This folder is empty."}</p>
+          <p className="muted bz-msg">{needle ? (deep ? "Nothing here or in sub-folders matches." : "Searching…") : "This folder is empty."}</p>
         )}
-        {!loc.kind && grouping === "kind" && files.length > 1 && (
+        {!loc.kind && shownGrouping === "kind" && files.length > 1 && (
           <div className="bz-hint">
             <SparkleIcon size={15} />
             <span>These groups are just a view. Want real folders?</span>
@@ -790,6 +824,13 @@ export function Browse({
           onPath={(p) => (setPeeking(p), setSelected(new Set([p])))}
           onClose={() => (setPeeking(null), root.current?.focus())}
           onOpen={(p) => api.launch(p).catch(toastError)}
+        />
+      )}
+      {batchRename && (
+        <RenameSheet
+          paths={batchRename}
+          onClose={() => (setBatchRename(null), root.current?.focus())}
+          onDone={() => (setBatchRename(null), refresh())}
         />
       )}
       {cleaning && (

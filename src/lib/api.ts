@@ -46,10 +46,11 @@ export const api = {
   undoBatch: (id: string) => invoke<RunSummary>("undo_batch", { id }),
   findDuplicates: (folder: string) => invoke<DupGroup[]>("find_duplicates", { folder }),
   searchFiles: (folder: string, query: string) => invoke<FileInfo[]>("search_files", { folder, query }),
-  renamePreview: (folder: string, template: string) =>
-    invoke<RenameRow[]>("rename_preview", { folder, template }),
-  renameApply: (folder: string, template: string) =>
-    invoke<RunSummary>("rename_apply", { folder, template }),
+  /** Rename the given files with a template ({date}_{original_name}…). */
+  renamePreview: (paths: string[], template: string) =>
+    invoke<RenameRow[]>("rename_preview", { paths, template }),
+  renameApply: (paths: string[], template: string) =>
+    invoke<RunSummary>("rename_apply", { paths, template }),
   exportRules: (path: string) => invoke<number>("export_rules", { path }),
   importRules: (path: string, replace: boolean) => invoke<number>("import_rules", { path, replace }),
   resolveDecisions: (plan: PlannedOp[], decisions: [string, Decision][]) =>
@@ -64,15 +65,18 @@ export const api = {
   renameItem: (path: string, newName: string) => invoke<string>("rename_item", { path, newName }),
   newFolder: (dir: string, name: string) => invoke<string>("new_folder", { dir, name }),
   copyItems: (paths: string[], dest: string) => invoke<Outcome>("copy_items", { paths, dest }),
-  /** Folders only; files move through planMoveInto + executePlan (undoable). */
-  moveFolders: (paths: string[], dest: string) => invoke<Outcome>("move_folders", { paths, dest }),
+  /** Files and folders; recorded in History ("Moved") so it can be undone. */
+  moveItems: (paths: string[], dest: string) => invoke<RunSummary>("move_items", { paths, dest }),
+  recordAction: (kind: "move" | "created" | "trashed", label: string, items: { src: string; dst: string }[]) =>
+    invoke<void>("record_action", { kind, label, items }),
   trashItems: (paths: string[]) => invoke<void>("trash_items", { paths }),
   thumbnails: (paths: string[]) => invoke<Record<string, string>>("thumbnails", { paths }),
   drives: () => invoke<Drive[]>("drives"),
   diskSpace: (path: string) => invoke<[number, number] | null>("disk_space", { path }),
   restoreFromTrash: (paths: string[]) => invoke<number>("restore_from_trash", { paths }),
   removeEmptyFolder: (path: string) => invoke<void>("remove_empty_folder", { path }),
-  cleanupSuggestions: (dir: string) => invoke<CleanGroup[]>("cleanup_suggestions", { dir }),
+  cleanupSuggestions: (dir: string, options: { sub_folders: boolean; unused_days: number | null }) =>
+    invoke<CleanGroup[]>("cleanup_suggestions", { dir, options }),
   previewImage: (path: string) => invoke<string | null>("preview_image", { path }),
   previewText: (path: string) => invoke<string | null>("preview_text", { path }),
   /** macOS Quick Look; resolves false on other systems (use DeskZero's preview). */

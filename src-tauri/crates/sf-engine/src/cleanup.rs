@@ -24,8 +24,19 @@ pub struct Suggestion {
 pub struct Group {
     /// unfinished | installers | duplicates | large
     pub id: &'static str,
-    pub title: &'static str,
+    pub title: String,
     pub items: Vec<Suggestion>,
+}
+
+/// What to look through.
+#[derive(Debug, Clone, Copy, Default, serde::Deserialize)]
+pub struct Options {
+    /// Also look inside sub-folders (hidden folders are skipped).
+    #[serde(default)]
+    pub sub_folders: bool,
+    /// Also suggest files not changed for this many days.
+    #[serde(default)]
+    pub unused_days: Option<u32>,
 }
 
 const DAY: u64 = 86_400;
@@ -53,23 +64,39 @@ fn older_than(t: SystemTime, days: u64) -> bool {
         .is_ok_and(|age| age > Duration::from_secs(days * DAY))
 }
 
-/// Suggestions for `dir`, groups in a fixed order, empty groups left out.
-pub fn suggest(dir: &Path) -> io::Result<Vec<Group>> {
+/// Folders with more files than this are only partly looked through.
+const MAX_FILES: usize = 200_000;
+
+fn collect(dir: &Path, sub_folders: bool) -> io::Result<Vec<Entry>> {
+    // Fail like read_dir on a missing or unreadable folder.
+    fs::read_dir(dir)?;
+    let walk = walkdir::WalkDir::new(dir)
+        .min_depth(1)
+        .max_depth(if sub_folders { usize::MAX } else { 1 })
+        .follow_links(false)
+        .into_iter()
+        .filter_entry(|e| !is_hidden_or_system(e.path()));
     let mut files = Vec::new();
-    for entry in fs::read_dir(dir)?.flatten() {
-        let path = entry.path();
-        let Ok(md) = entry.metadata() else { continue };
-        if !md.is_file() || is_hidden_or_system(&path) {
+    for entry in walk.flatten().take(MAX_FILES) {
+        if !entry.file_type().is_file() {
             continue;
         }
+        let Ok(md) = entry.metadata() else { continue };
         files.push(Entry {
             name: entry.file_name().to_string_lossy().into_owned(),
             size: md.len(),
             modified: md.modified().unwrap_or(SystemTime::UNIX_EPOCH),
-            path,
+            path: entry.into_path(),
         });
     }
-    files.sort_by_cached_key(|f| f.name.to_lowercase());
+    files.sort_by_cached_key(|f| f.path.to_string_lossy().to_lowercase());
+    Ok(files)
+}
+
+/// Suggestions for `dir`, groups in a fixed order, empty groups left out.
+/// A file appears in one group at most.
+pub fn suggest(dir: &Path, opts: Options) -> io::Result<Vec<Group>> {
+    let files = collect(dir, opts.sub_folders)?;
 
     let mut unfinished = Vec::new();
     let mut installers = Vec::new();
@@ -91,12 +118,37 @@ pub fn suggest(dir: &Path) -> io::Result<Vec<Group>> {
     }
     large.sort_by_key(|s| std::cmp::Reverse(s.size_bytes));
 
+    let copies = duplicates(&files);
+    let mut taken: std::collections::HashSet<PathBuf> = unfinished
+        .iter()
+        .chain(&installers)
+        .chain(&copies)
+        .map(|s| s.path.clone())
+        .collect();
+    let large: Vec<Suggestion> = large
+        .into_iter()
+        .filter(|s| taken.insert(s.path.clone()))
+        .collect();
+    let mut unused = Vec::new();
+    if let Some(days) = opts.unused_days {
+        for f in &files {
+            if older_than(f.modified, u64::from(days)) && !taken.contains(&f.path) {
+                unused.push(item(f, &format!("not changed in {days} days")));
+            }
+        }
+    }
+    let unused_title = format!(
+        "Not changed in {} days",
+        opts.unused_days.unwrap_or_default()
+    );
+
     let mut groups = Vec::new();
     for (id, title, items) in [
-        ("unfinished", "Unfinished downloads", unfinished),
-        ("installers", "Old installers", installers),
-        ("duplicates", "Duplicate copies", duplicates(&files)),
-        ("large", "Very large files", large),
+        ("unfinished", "Unfinished downloads".to_string(), unfinished),
+        ("installers", "Old installers".to_string(), installers),
+        ("duplicates", "Duplicate copies".to_string(), copies),
+        ("large", "Very large files".to_string(), large),
+        ("unused", unused_title, unused),
     ] {
         if !items.is_empty() {
             groups.push(Group { id, title, items });
@@ -177,7 +229,7 @@ mod tests {
         fs::write(d.join("report (1).pdf"), b"same bytes").unwrap();
         fs::write(d.join("other.pdf"), b"diff bytes").unwrap();
 
-        let groups = suggest(d).unwrap();
+        let groups = suggest(d, Options::default()).unwrap();
         let ids: Vec<&str> = groups.iter().map(|g| g.id).collect();
         assert_eq!(ids, ["unfinished", "installers", "duplicates"]);
         assert!(groups[0].items[0].path.ends_with("movie.mp4.crdownload"));
@@ -193,6 +245,36 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         fs::write(tmp.path().join("notes.txt"), b"x").unwrap();
         fs::create_dir(tmp.path().join("sub")).unwrap();
-        assert!(suggest(tmp.path()).unwrap().is_empty());
+        assert!(suggest(tmp.path(), Options::default()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn sub_folders_and_unused_files_when_asked() {
+        let tmp = tempfile::tempdir().unwrap();
+        let d = tmp.path();
+        fs::create_dir_all(d.join("sub")).unwrap();
+        fs::create_dir_all(d.join(".hidden")).unwrap();
+        fs::write(d.join("sub/old.txt"), b"old").unwrap();
+        age(&d.join("sub/old.txt"), 400);
+        fs::write(d.join(".hidden/old.txt"), b"hidden").unwrap();
+        age(&d.join(".hidden/old.txt"), 400);
+        fs::write(d.join("new.txt"), b"new").unwrap();
+
+        let top_only = Options {
+            sub_folders: false,
+            unused_days: Some(365),
+        };
+        assert!(suggest(d, top_only).unwrap().is_empty());
+
+        let deep = Options {
+            sub_folders: true,
+            unused_days: Some(365),
+        };
+        let groups = suggest(d, deep).unwrap();
+        assert_eq!(groups.len(), 1);
+        assert_eq!(groups[0].id, "unused");
+        assert_eq!(groups[0].title, "Not changed in 365 days");
+        assert_eq!(groups[0].items.len(), 1);
+        assert!(groups[0].items[0].path.ends_with("old.txt"));
     }
 }

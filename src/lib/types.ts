@@ -147,11 +147,14 @@ export interface HistoryItem {
 export interface HistoryEntry {
   id: string;
   ts: string;
-  kind: "move" | "undo";
+  /** created / trashed: things the file browser made or deleted. */
+  kind: "move" | "undo" | "created" | "trashed";
   items: HistoryItem[];
   quarantined: HistoryItem[];
   failed: { src: string; error: string }[];
   undone: boolean;
+  /** What the browser did ("Renamed", "Moved"…); absent for organizer batches. */
+  label?: string;
 }
 
 export interface FileInfo {
@@ -236,7 +239,7 @@ export interface CleanItem {
 }
 
 export interface CleanGroup {
-  id: "unfinished" | "installers" | "duplicates" | "large";
+  id: "unfinished" | "installers" | "duplicates" | "large" | "unused";
   title: string;
   items: CleanItem[];
 }
