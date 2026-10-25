@@ -12,7 +12,7 @@ Put files into one folder — your **DeskZero** — and they get sorted into `Im
 DeskZero opens as a file browser on your Downloads, with loose files grouped by kind (Videos, Images, PDFs…) or date. It looks like Finder on a Mac, File Explorer on Windows and GNOME Files on Linux.
 
 - **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is a daily update check (Settings › About to switch it off).
-- **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
+- **Safe.** You see a preview before anything is organized. It never deletes anything for good (deleting moves to the Trash / Recycle Bin) and never overwrites by default, and every change can be undone.
 - **Small.** Built with Tauri and Rust; the installer is a few MB.
 
 ![Home screen](docs/screenshot-home.png)
@@ -29,7 +29,9 @@ DeskZero opens as a file browser on your Downloads, with loose files grouped by 
 
 | | |
 |---|---|
-| **File browser** | Opens on Downloads (or a folder you choose). Folder tiles with sizes; loose files grouped by kind or date as a view, with "Sort into folders" to make it real. Rename, new folder, copy/cut/paste, Move to Trash / Recycle Bin, picture previews, drives with free space. |
+| **File browser** | Opens on Downloads (or a folder you choose). Folder tiles with sizes; loose files grouped by kind or date as a view, with "Sort into folders" to make it real. Rename (F2; several files at once with a template), new folder, copy/cut/paste (also to and from Explorer / Finder), drag and drop, Move to Trash / Recycle Bin, picture previews, Space to preview (Quick Look on a Mac), pinned folders, drives with free space. |
+| **Search** | The browser's search box looks through the folder and its sub-folders as you type: `invoice`, `*.pdf`, `large files`, `type:video`, `size:>10mb`, `modified:2026-09`. |
+| **Clean up** | One click lists unfinished downloads, old installers, duplicate copies (size + SHA-256), very large files and, if you like, files not changed for months; what you tick goes to the Trash. |
 | **DeskZero** | Drop files in (or onto the window) and they're sorted into category folders. |
 | **Watch folders** | Watch Downloads or any folder. New files are picked up once they've finished downloading. |
 | **Simple rules** | "IF file name contains *invoice* THEN move to *Documents/Invoices*". Conditions: extension, file name, file type, size, created and modified date. |
@@ -37,12 +39,9 @@ DeskZero opens as a file browser on your Downloads, with loose files grouped by 
 | **Rename while sorting** | A rule can also rename, e.g. `{date}_{original_name}`. |
 | **Never touch** | An ignore list (`*.lnk`, `Thumbs*.jpg`…). Hidden and system files are always left alone. |
 | **Preview** | "Organize 12 files?" with every move listed. Name clashes can ask you: keep both, replace or skip. |
-| **Undo** | Every batch is recorded; History puts files back and removes folders it left empty. |
+| **Undo** | Everything is recorded in History: organized batches and every rename, move, copy, new folder and delete in the browser. Ctrl/Cmd+Z or History undoes any of it (on a Mac, files are put back from the Trash with Finder's Put Back). |
 | **Universal search** | Press **Ctrl+Shift+Space** (⌘⇧Space on Mac) anywhere: a floating bar finds files, folders and apps as you type, with their real icons. Like Spotlight, it closes when you click anywhere else, switch apps or press Esc. On Windows it also finds built-in apps such as Calculator, Notepad, Terminal and Settings. |
-| **Duplicates** | Finds identical files (size + SHA-256). Move extra copies aside in one click; never deletes. |
-| **Cleanup** | Moves files you haven't touched in 30/90/180/365 days into an Archive folder. |
 | **Storage** | See how much space each folder in your DeskZero uses. |
-| **Search & Rename** | Search with `invoice`, `*.pdf`, `large files`, `type:video`, `size:>10mb`; rename templates with a preview. |
 | **Right-click menu** | Windows: "Organize with DeskZero" on any file or folder in Explorer (switch on in Settings). |
 | **Shortcuts & tray** | **Ctrl+Alt+O** organizes waiting files. Runs quietly in the tray / menu bar. |
 | **Updates** | Settings → About shows your version and installs signed updates when you ask. |
