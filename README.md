@@ -213,6 +213,18 @@ Set `DESKZERO_DATA_DIR` to use a separate data folder while testing.
 
 Made by Jagdeep Sandhu · [github.com/imjagdeep](https://github.com/imjagdeep)
 
+## Code signing policy
+
+Free code signing provided by [SignPath.io](https://signpath.io), certificate by [SignPath Foundation](https://signpath.org).
+
+- **What is signed:** the Windows installers, built by GitHub Actions from this repository's source. Nothing built on a personal computer is signed. The macOS builds are signed with an Apple Developer ID and notarized by Apple.
+- **Team:** Jagdeep Singh Sandhu is the Author (commits code), Reviewer (reviews outside contributions before they are merged) and Approver (approves every signing request by hand). Two-factor authentication is on for GitHub and SignPath.
+- **Privacy:** DeskZero only goes online to check for updates (switch it off in Settings › About). See the [privacy policy](https://getdesklab.com/privacy/).
+- **Check a signature:** installer › Properties › Digital Signatures should show SignPath Foundation.
+- **Report a problem:** email me@jaggi.cc with the file name, where you got it and its SHA-256 hash.
+
+Full policy: [getdesklab.com/code-signing](https://getdesklab.com/code-signing/).
+
 ## License
 
 [MIT](LICENSE)
