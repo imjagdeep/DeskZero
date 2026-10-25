@@ -9,6 +9,8 @@ A tiny offline desktop app that keeps your folders organized.
 
 Put files into one folder — your **DeskZero** — and they get sorted into `Images`, `Documents`, `Videos` and so on by simple rules you control. It can also watch folders like Downloads and Desktop in the background.
 
+DeskZero opens as a file browser on your Downloads, with loose files grouped by kind (Videos, Images, PDFs…) or date. It looks like Finder on a Mac, File Explorer on Windows and GNOME Files on Linux.
+
 - **Offline and private.** No account, no cloud, no telemetry, no AI. Nothing leaves your computer. The only network use is a daily update check (Settings › About to switch it off).
 - **Safe.** You see a preview before anything moves. It never deletes and never overwrites by default, and every move can be undone.
 - **Small.** Built with Tauri and Rust; the installer is a few MB.
@@ -27,6 +29,7 @@ Put files into one folder — your **DeskZero** — and they get sorted into `Im
 
 | | |
 |---|---|
+| **File browser** | Opens on Downloads (or a folder you choose). Folder tiles with sizes; loose files grouped by kind or date as a view, with "Sort into folders" to make it real. Rename, new folder, copy/cut/paste, Move to Trash / Recycle Bin, picture previews, drives with free space. |
 | **DeskZero** | Drop files in (or onto the window) and they're sorted into category folders. |
 | **Watch folders** | Watch Downloads or any folder. New files are picked up once they've finished downloading. |
 | **Simple rules** | "IF file name contains *invoice* THEN move to *Documents/Invoices*". Conditions: extension, file name, file type, size, created and modified date. |
