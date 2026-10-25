@@ -160,3 +160,137 @@ export const BroomIcon = (p: IconProps) => (
     <path d="m7 15 2 2" />
   </Svg>
 );
+
+export const DesktopIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="12.5" rx="1.8" />
+    <path d="M9 20h6M12 16.5V20" />
+  </Svg>
+);
+
+export const DocumentIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14 3.5H7.2a1.7 1.7 0 0 0-1.7 1.7v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8Z" />
+    <path d="M14 3.5V8h4.5M9 12.5h6M9 16h6" />
+  </Svg>
+);
+
+export const DownloadIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <path d="M12 7.5v8.5M8.5 12.5 12 16l3.5-3.5" />
+  </Svg>
+);
+
+export const ImageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="5" width="17" height="14" rx="2" />
+    <circle cx="9" cy="10" r="1.6" />
+    <path d="m4 17.5 5-4.5 3.5 3 3-2.5 4.5 4" />
+  </Svg>
+);
+
+export const MusicIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9.5 17.5V5.5l10-2v12" />
+    <circle cx="7" cy="17.5" r="2.5" />
+    <circle cx="17" cy="15.5" r="2.5" />
+  </Svg>
+);
+
+export const FilmIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M7.5 4.5v15M16.5 4.5v15M3.5 9h4M3.5 15h4M16.5 9h4M16.5 15h4" />
+  </Svg>
+);
+
+export const PdfIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M14 3.5H7.2a1.7 1.7 0 0 0-1.7 1.7v13.6a1.7 1.7 0 0 0 1.7 1.7h9.6a1.7 1.7 0 0 0 1.7-1.7V8Z" />
+    <path d="M14 3.5V8h4.5" />
+    <path d="M8.5 16.5v-4h1.4a1.3 1.3 0 0 1 0 2.6H8.5M13 16.5v-4h.9a2 2 0 0 1 0 4Z" />
+  </Svg>
+);
+
+export const ArchiveIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4" width="18" height="4.5" rx="1.2" />
+    <path d="M4.5 8.5v10a1.5 1.5 0 0 0 1.5 1.5h12a1.5 1.5 0 0 0 1.5-1.5v-10M10 12.5h4" />
+  </Svg>
+);
+
+export const PackageIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m12 3 8 4.5v9L12 21l-8-4.5v-9Z" />
+    <path d="m4 7.5 8 4.5 8-4.5M12 12v9M8 5.3l8 4.5" />
+  </Svg>
+);
+
+export const TableIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3.5" y="4.5" width="17" height="15" rx="2" />
+    <path d="M3.5 9.5h17M3.5 14.5h17M9.5 9.5v10" />
+  </Svg>
+);
+
+export const SlidesIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <rect x="3" y="4.5" width="18" height="12" rx="1.8" />
+    <path d="M12 16.5V20M8.5 20h7M8 12.5l3-3 2 2 3-3" />
+  </Svg>
+);
+
+export const CodeIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m8.5 8-4 4 4 4M15.5 8l4 4-4 4M13.5 5.5l-3 13" />
+  </Svg>
+);
+
+export const DiscIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="12" cy="12" r="8.5" />
+    <circle cx="12" cy="12" r="2.2" />
+  </Svg>
+);
+
+export const MoreIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <circle cx="6" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.2" fill="currentColor" />
+    <circle cx="18" cy="12" r="1.2" fill="currentColor" />
+  </Svg>
+);
+
+export const BackIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m14.5 6-6 6 6 6" />
+  </Svg>
+);
+
+export const ForwardIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="m9.5 6 6 6-6 6" />
+  </Svg>
+);
+
+export const UpIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M12 19V5.5M6.5 11 12 5.5l5.5 5.5" />
+  </Svg>
+);
+
+export const ListIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M9 6.5h11M9 12h11M9 17.5h11" />
+    <circle cx="4.8" cy="6.5" r="0.9" fill="currentColor" />
+    <circle cx="4.8" cy="12" r="0.9" fill="currentColor" />
+    <circle cx="4.8" cy="17.5" r="0.9" fill="currentColor" />
+  </Svg>
+);
+
+export const RefreshIcon = (p: IconProps) => (
+  <Svg {...p}>
+    <path d="M19.5 12a7.5 7.5 0 1 1-2.2-5.3M19.5 4.5v4h-4" />
+  </Svg>
+);

@@ -4,6 +4,7 @@ import { invoke } from "@tauri-apps/api/core";
 import type {
   AppConfig,
   Attention,
+  BrowseItem,
   Decision,
   FinderInfo,
   FolderUsage,
@@ -12,6 +13,7 @@ import type {
   FileInfo,
   HistoryEntry,
   PlannedOp,
+  Place,
   RenameRow,
   Rule,
   RunSummary,
@@ -53,6 +55,9 @@ export const api = {
   planOldFiles: (folder: string, days: number, dest: string) =>
     invoke<PlannedOp[]>("plan_old_files", { folder, days, dest }),
   storageOverview: () => invoke<FolderUsage[]>("storage_overview"),
+  listFolder: (path: string, showHidden: boolean) => invoke<BrowseItem[]>("list_folder", { path, showHidden }),
+  folderSizes: (paths: string[]) => invoke<[string, number][]>("folder_sizes", { paths }),
+  places: () => invoke<Place[]>("places"),
   universalSearch: (query: string) => invoke<SearchEntry[]>("universal_search", { query }),
   searchIcons: (items: [string, string][]) => invoke<Record<string, string>>("search_icons", { items }),
   searchInfo: () => invoke<FinderInfo>("search_info"),

@@ -1,8 +1,15 @@
 import logo from "../assets/logo.png";
 import { useStatus } from "../lib/store";
+import type { Place, PlaceId } from "../lib/types";
 import { SideNav, type NavGroup } from "../shell/SideNav";
 import {
   BroomIcon,
+  DesktopIcon,
+  DocumentIcon,
+  DownloadIcon,
+  FilmIcon,
+  ImageIcon,
+  MusicIcon,
   DuplicatesIcon,
   HistoryIcon,
   HomeIcon,
@@ -10,10 +17,12 @@ import {
   RulesIcon,
   SearchIcon,
   SettingsIcon,
+  SparkleIcon,
   WatchIcon,
 } from "./Icons";
 
 export type Page =
+  | "browse"
   | "home"
   | "watch"
   | "rules"
@@ -26,7 +35,8 @@ export type Page =
 
 /** The pages in sidebar order (the Tools menu and Ctrl+1… use it too). */
 export const PAGES: { page: Page; label: string; group: string }[] = [
-  { page: "home", label: "Home", group: "Organize" },
+  { page: "browse", label: "Files", group: "Places" },
+  { page: "home", label: "Organizer", group: "Organize" },
   { page: "watch", label: "Watch Folders", group: "Organize" },
   { page: "rules", label: "Rules", group: "Organize" },
   { page: "search", label: "Search", group: "Tools" },
@@ -38,7 +48,8 @@ export const PAGES: { page: Page; label: string; group: string }[] = [
 ];
 
 const ICONS: Record<Page, (p: { size?: number }) => React.ReactElement> = {
-  home: HomeIcon,
+  browse: DownloadIcon,
+  home: SparkleIcon,
   watch: WatchIcon,
   rules: RulesIcon,
   search: SearchIcon,
@@ -49,11 +60,38 @@ const ICONS: Record<Page, (p: { size?: number }) => React.ReactElement> = {
   settings: SettingsIcon,
 };
 
-export function Sidebar({ page, onNavigate }: { page: Page; onNavigate: (p: Page) => void }) {
+const PLACE_ICONS: Record<PlaceId, (p: { size?: number }) => React.ReactElement> = {
+  home: HomeIcon,
+  desktop: DesktopIcon,
+  documents: DocumentIcon,
+  downloads: DownloadIcon,
+  pictures: ImageIcon,
+  music: MusicIcon,
+  videos: FilmIcon,
+};
+
+/** A sidebar entry: one of the pages, or a place opened in the browser. */
+export type NavTarget = Page | `place:${PlaceId}`;
+
+export function Sidebar({
+  active,
+  places,
+  onNavigate,
+}: {
+  active: NavTarget;
+  places: Place[];
+  onNavigate: (t: NavTarget) => void;
+}) {
   const status = useStatus();
   const watching = status?.watching.length ?? 0;
-  const groups: NavGroup<Page>[] = [];
+  const groups: NavGroup<NavTarget>[] = [
+    {
+      title: "Places",
+      items: places.map((pl) => ({ page: `place:${pl.id}` as const, label: pl.label, Icon: PLACE_ICONS[pl.id], hint: pl.path })),
+    },
+  ];
   for (const p of PAGES) {
+    if (p.page === "browse") continue; // the places above are the browser
     let g = groups.find((x) => x.title === p.group);
     if (!g) groups.push((g = { title: p.group, items: [] }));
     const badge = p.page === "home" && status && status.pending > 0 ? <span className="count">{status.pending}</span> : undefined;
@@ -65,7 +103,7 @@ export function Sidebar({ page, onNavigate }: { page: Page; onNavigate: (p: Page
       appName="DeskZero"
       logo={logo}
       groups={groups}
-      page={page}
+      page={active}
       onNavigate={onNavigate}
       footTitle={state}
       foot={

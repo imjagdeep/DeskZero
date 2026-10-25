@@ -4,6 +4,7 @@
 //! adapter over this crate.
 
 pub mod alive;
+pub mod browse;
 pub mod classify;
 pub mod config;
 pub mod duplicates;

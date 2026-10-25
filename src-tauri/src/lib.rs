@@ -178,6 +178,9 @@ pub fn run() {
             commands::open_tool,
             commands::notify_update,
             commands::plan_watch_folder,
+            commands::list_folder,
+            commands::folder_sizes,
+            commands::places,
         ])
         .build(tauri::generate_context!())
         .expect("error while building DeskZero")

@@ -187,3 +187,22 @@ export interface FinderInfo {
 }
 
 export type Decision = "keep_both" | "replace" | "skip";
+
+export interface BrowseItem {
+  name: string;
+  path: string;
+  is_dir: boolean;
+  size_bytes: number;
+  modified: string | null;
+  category: Category | null;
+  /** Folders only: entries directly inside, null when unreadable. */
+  children: number | null;
+}
+
+export type PlaceId = "home" | "desktop" | "documents" | "downloads" | "pictures" | "music" | "videos";
+
+export interface Place {
+  id: PlaceId;
+  label: string;
+  path: string;
+}

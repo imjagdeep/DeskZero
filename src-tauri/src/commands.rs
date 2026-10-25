@@ -650,6 +650,62 @@ pub async fn storage_overview(app: AppHandle) -> CmdResult<Vec<sf_engine::tidy::
     blocking(move || sf_engine::tidy::storage_overview(&root).map_err(|e| e.to_string())).await
 }
 
+// ---------- file browser ----------
+
+#[derive(Serialize)]
+pub struct ItemDto {
+    name: String,
+    path: PathBuf,
+    is_dir: bool,
+    size_bytes: u64,
+    modified: Option<String>,
+    category: Option<sf_engine::Category>,
+    children: Option<u64>,
+}
+
+#[tauri::command]
+pub async fn list_folder(path: PathBuf, show_hidden: bool) -> CmdResult<Vec<ItemDto>> {
+    blocking(move || {
+        let items = sf_engine::browse::list_dir(&path, show_hidden)
+            .map_err(|e| format!("cannot open {}: {e}", path.display()))?;
+        Ok(items
+            .into_iter()
+            .map(|i| ItemDto {
+                name: i.name,
+                path: i.path,
+                is_dir: i.is_dir,
+                size_bytes: i.size_bytes,
+                modified: time_str(i.modified),
+                category: i.category,
+                children: i.children,
+            })
+            .collect())
+    })
+    .await
+}
+
+/// Total size of each folder, for the folder tiles. Asked for after the
+/// listing is on screen, since big folders take a while to walk.
+#[tauri::command]
+pub async fn folder_sizes(paths: Vec<PathBuf>) -> CmdResult<Vec<(PathBuf, u64)>> {
+    blocking(move || {
+        Ok(paths
+            .into_iter()
+            .take(200)
+            .map(|p| {
+                let (bytes, _) = sf_engine::tidy::folder_size(&p);
+                (p, bytes)
+            })
+            .collect())
+    })
+    .await
+}
+
+#[tauri::command]
+pub fn places() -> Vec<sf_engine::browse::Place> {
+    sf_engine::browse::places()
+}
+
 // ---------- universal search ----------
 
 #[tauri::command]
