@@ -368,9 +368,7 @@ input.bz-rename:not([type="checkbox"]) {
 .bz-row input.bz-rename:not([type="checkbox"]) { text-align: left; }
 
 .ctx-menu { position: fixed; z-index: 30; min-width: 220px; }
-.menu-row.danger:not(:disabled) { color: var(--red); }
-.menu-row:focus-visible, .ctx-menu .menu-row:focus { background: var(--accent-grad); color: var(--accent-text); outline: none; box-shadow: none; }
-.ctx-menu .menu-row:focus .menu-accel { color: color-mix(in srgb, var(--accent-text) 70%, transparent); }
+.menu-row:focus-visible { background: color-mix(in srgb, var(--text) 7%, transparent); outline: none; box-shadow: none; }
 
 .confirm-card { width: min(440px, 92vw); }
 .confirm-card h2 { word-break: break-word; }

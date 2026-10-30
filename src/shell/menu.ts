@@ -3,6 +3,7 @@
 // palette and the shortcuts list. Same file in DeskZero, DeskMedic and DeskFolio.
 
 import { Menu, MenuItem, PredefinedMenuItem, Submenu, CheckMenuItem } from "@tauri-apps/api/menu";
+import type { MenuIcon } from "./menuIcons";
 
 export type NativeEdit = "undo" | "redo" | "cut" | "copy" | "paste" | "selectAll";
 
@@ -18,9 +19,14 @@ export interface Cmd {
   native?: NativeEdit;
   /** Leave out of the command palette (e.g. plain clipboard items). */
   hidden?: boolean;
+  /** Small icon in front of the label (in-window menus only). */
+  icon?: MenuIcon;
+  /** Red, for things that delete or can't be undone. */
+  danger?: boolean;
 }
 export interface SubmenuDef {
   label: string;
+  icon?: MenuIcon;
   items: Entry[];
 }
 export type Entry = Cmd | "-" | SubmenuDef;

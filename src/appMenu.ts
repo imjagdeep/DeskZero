@@ -13,6 +13,7 @@ import { focusBrowserSearch } from "./pages/Browse";
 import { showOrganizerTab } from "./pages/Organizer";
 import { exportRulesFile, importRulesFile } from "./pages/Rules";
 import type { MenuDef } from "./shell/menu";
+import type { MenuIcon } from "./shell/menuIcons";
 import {
   editCommand,
   isCompactSidebar,
@@ -26,6 +27,7 @@ import {
   zoomStep,
 } from "./shell/shell";
 
+const PAGE_ICONS: Partial<Record<Page, MenuIcon>> = { browse: "open", home: "apps", history: "history", settings: "settings" };
 const LAB_NAMES: Record<string, string> = { deskmedic: "DeskMedic", deskfolio: "DeskFolio" };
 
 export function useAppMenus(go: (p: Page) => void): MenuDef[] {
@@ -57,7 +59,7 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
       label: "File",
       items: [
         {
-          id: "organize-waiting",
+          id: "organize-waiting", icon: "wrap",
           label: "Organize waiting files…",
           accel: "Mod+Shift+O",
           enabled: () => (status?.pending ?? 0) > 0,
@@ -67,7 +69,7 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
           },
         },
         {
-          id: "add-watch",
+          id: "add-watch", icon: "folder-plus",
           label: "Add a watch folder…",
           enabled: () => !!settings,
           run: async () => {
@@ -81,13 +83,13 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
             toast("Watching it now");
           },
         },
-        { id: "open-root", label: "Open your DeskZero folder", enabled: () => !!root, run: () => api.openFolder(root ?? "") },
+        { id: "open-root", icon: "open", label: "Open your DeskZero folder", enabled: () => !!root, run: () => api.openFolder(root ?? "") },
         "-",
-        { id: "import-rules", label: "Import rules…", run: () => importRulesFile(cfg?.rules.length ?? 0) },
-        { id: "export-rules", label: "Export rules…", run: exportRulesFile },
+        { id: "import-rules", icon: "upload", label: "Import rules…", run: () => importRulesFile(cfg?.rules.length ?? 0) },
+        { id: "export-rules", icon: "download", label: "Export rules…", run: exportRulesFile },
         "-",
         {
-          id: "pause",
+          id: "pause", icon: "stop",
           label: "Pause watching",
           checked: () => paused,
           run: async () => {
@@ -95,10 +97,10 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
             await refreshStatus();
           },
         },
-        { id: "settings", label: "Settings…", accel: "Mod+,", run: () => go("settings") },
+        { id: "settings", icon: "settings", label: "Settings…", accel: "Mod+,", run: () => go("settings") },
         "-",
         // Closing the window keeps DeskZero in the tray; this quits for real.
-        { id: "exit", label: "Exit DeskZero", run: () => exit(0) },
+        { id: "exit", icon: "exit", label: "Exit DeskZero", run: () => exit(0) },
       ],
     };
 
@@ -106,44 +108,44 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
       label: "Edit",
       items: [
         {
-          id: "undo",
+          id: "undo", icon: "undo",
           label: "Undo",
           accel: "Mod+Z",
           // In a text field: undo typing. Otherwise: the last file action.
           enabled: () => textFieldFocused() || canUndo(),
           run: () => (textFieldFocused() ? editCommand("undo") : undoLast()),
         },
-        { id: "redo", label: "Redo", accel: "Mod+Y", native: "redo", hidden: true, run: () => editCommand("redo") },
+        { id: "redo", icon: "redo", label: "Redo", accel: "Mod+Y", native: "redo", hidden: true, run: () => editCommand("redo") },
         "-",
-        { id: "cut", label: "Cut", accel: "Mod+X", native: "cut", hidden: true, run: () => editCommand("cut") },
-        { id: "copy", label: "Copy", accel: "Mod+C", native: "copy", hidden: true, run: () => editCommand("copy") },
-        { id: "paste", label: "Paste", accel: "Mod+V", native: "paste", hidden: true, run: pasteText },
-        { id: "select-all", label: "Select all", accel: "Mod+A", native: "selectAll", hidden: true, run: () => editCommand("selectAll") },
+        { id: "cut", icon: "cut", label: "Cut", accel: "Mod+X", native: "cut", hidden: true, run: () => editCommand("cut") },
+        { id: "copy", icon: "copy", label: "Copy", accel: "Mod+C", native: "copy", hidden: true, run: () => editCommand("copy") },
+        { id: "paste", icon: "paste", label: "Paste", accel: "Mod+V", native: "paste", hidden: true, run: pasteText },
+        { id: "select-all", icon: "select", label: "Select all", accel: "Mod+A", native: "selectAll", hidden: true, run: () => editCommand("selectAll") },
         "-",
-        { id: "undo-batch", label: "Undo an organize…", run: () => go("history") },
+        { id: "undo-batch", icon: "history", label: "Undo an organize…", run: () => go("history") },
         // Search lives in the file browser's search box now.
-        { id: "find", label: "Find files…", accel: "Mod+F", run: () => (go("browse"), focusBrowserSearch()) },
+        { id: "find", icon: "search", label: "Find files…", accel: "Mod+F", run: () => (go("browse"), focusBrowserSearch()) },
       ],
     };
 
     const view: MenuDef = {
       label: "View",
       items: [
-        { id: "sidebar", label: "Compact sidebar", accel: "Mod+B", checked: () => isCompactSidebar(), run: toggleSidebar },
+        { id: "sidebar", icon: "sidebar", label: "Compact sidebar", accel: "Mod+B", checked: () => isCompactSidebar(), run: toggleSidebar },
         "-",
-        { id: "zoom-in", label: "Zoom in", accel: "Mod+=", run: () => zoomStep(1) },
-        { id: "zoom-out", label: "Zoom out", accel: "Mod+-", run: () => zoomStep(-1) },
-        { id: "zoom-reset", label: "Actual size", accel: "Mod+0", run: () => setZoom(1) },
+        { id: "zoom-in", icon: "zoom-in", label: "Zoom in", accel: "Mod+=", run: () => zoomStep(1) },
+        { id: "zoom-out", icon: "zoom-out", label: "Zoom out", accel: "Mod+-", run: () => zoomStep(-1) },
+        { id: "zoom-reset", icon: "actual-size", label: "Actual size", accel: "Mod+0", run: () => setZoom(1) },
         "-",
-        { label: "Theme", items: [themeItem("system", "Match system"), themeItem("light", "Light"), themeItem("dark", "Dark")] },
-        { id: "fullscreen", label: "Full screen", accel: "F11", run: toggleFullscreen },
+        { label: "Theme", icon: "theme", items: [themeItem("system", "Match system"), themeItem("light", "Light"), themeItem("dark", "Dark")] },
+        { id: "fullscreen", icon: "fullscreen", label: "Full screen", accel: "F11", run: toggleFullscreen },
       ],
     };
 
     const tools: MenuDef = {
       label: "Tools",
       items: PAGES.filter((p) => p.page !== "settings").map((p, i) => ({
-        id: `go-${p.page}`,
+        id: `go-${p.page}`, icon: PAGE_ICONS[p.page],
         label: p.label,
         accel: i < 9 ? `Mod+${i + 1}` : undefined,
         run: () => go(p.page),
@@ -153,14 +155,15 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
     const help: MenuDef = {
       label: "Help",
       items: [
-        { id: "palette", label: "Search commands…", accel: "Mod+K", run: () => openShellDialog("palette") },
-        { id: "shortcuts", label: "Keyboard shortcuts", accel: "F1", run: () => openShellDialog("shortcuts") },
+        { id: "palette", icon: "command", label: "Search commands…", accel: "Mod+K", run: () => openShellDialog("palette") },
+        { id: "shortcuts", icon: "keyboard", label: "Keyboard shortcuts", accel: "F1", run: () => openShellDialog("shortcuts") },
         "-",
-        { id: "updates", label: "Check for updates…", run: () => (go("settings"), void checkAndDownload(true)) },
-        { id: "whats-new", label: "What's new", run: () => api.openLink("releases") },
-        { id: "report", label: "Report a problem…", run: () => api.openLink("issues") },
+        { id: "updates", icon: "update", label: "Check for updates…", run: () => (go("settings"), void checkAndDownload(true)) },
+        { id: "whats-new", icon: "news", label: "What's new", run: () => api.openLink("releases") },
+        { id: "report", icon: "bug", label: "Report a problem…", run: () => api.openLink("issues") },
         {
           label: "More DeskLab tools",
+          icon: "apps",
           items: lab.map((t) => ({
             id: `lab-${t.id}`,
             label: t.installed ? `Open ${LAB_NAMES[t.id] ?? t.id}` : `Get ${LAB_NAMES[t.id] ?? t.id}`,
@@ -168,7 +171,7 @@ export function useAppMenus(go: (p: Page) => void): MenuDef[] {
           })),
         },
         "-",
-        { id: "about", label: "About DeskZero", run: () => openShellDialog("about") },
+        { id: "about", icon: "info", label: "About DeskZero", run: () => openShellDialog("about") },
       ],
     };
     return [file, edit, view, tools, help];
