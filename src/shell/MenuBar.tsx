@@ -5,6 +5,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { accelText, isCmd, isMac, isSub, matches, allCommands, runCmd, setNativeMenu, type Entry, type MenuDef } from "./menu";
+import { MenuChevron, MenuGlyph } from "./menuIcons";
 
 export function MenuBar({ appName, menus, onError, compact = false }: { appName: string; menus: MenuDef[]; onError: (e: unknown) => void; compact?: boolean }) {
   const [open, setOpen] = useState<number | null>(null);
@@ -170,7 +171,7 @@ export function MenuBar({ appName, menus, onError, compact = false }: { appName:
                 >
                   <span className="menu-check" />
                   <span className="menu-label">{m.label}</span>
-                  <span className="menu-chev">›</span>
+                  <MenuChevron />
                 </button>
               ))}
             </div>
@@ -253,9 +254,9 @@ function MenuList({
               role="menuitem"
               aria-haspopup="menu"
             >
-              <span className="menu-check" />
+              <span className="menu-check">{e.icon && <MenuGlyph name={e.icon} />}</span>
               <span className="menu-label">{e.label}</span>
-              <span className="menu-chev">›</span>
+              <MenuChevron />
               {subOpen === i && <MenuList items={e.items} hot={-1} setHot={() => undefined} close={close} onError={onError} sub />}
             </div>
           );
@@ -265,7 +266,7 @@ function MenuList({
         return (
           <button
             key={e.id}
-            className={hot === i ? "menu-row hot" : "menu-row"}
+            className={`menu-row${hot === i ? " hot" : ""}${e.danger ? " danger" : ""}`}
             role={checked === undefined ? "menuitem" : "menuitemcheckbox"}
             aria-checked={checked}
             disabled={disabled}
@@ -279,7 +280,7 @@ function MenuList({
               void runCmd(e, onError);
             }}
           >
-            <span className="menu-check">{checked ? "✓" : ""}</span>
+            <span className="menu-check">{checked ? <MenuGlyph name="check" /> : e.icon && <MenuGlyph name={e.icon} />}</span>
             <span className="menu-label">{e.label}</span>
             {e.accel && <span className="menu-accel">{accelText(e.accel)}</span>}
           </button>
