@@ -1,5 +1,5 @@
 // "More free tools": the other DeskLab apps, opened directly when installed,
-// otherwise their download page. Same file in DeskZero, DeskMedic and DeskFolio.
+// otherwise their download page. Same file in every DeskLab app.
 
 import { useEffect, useState } from "react";
 import { api, type LabTool, type LabToolId } from "../lib/api";
@@ -9,6 +9,7 @@ const ABOUT: Record<LabToolId, { name: string; blurb: string }> = {
   deskzero: { name: "DeskZero", blurb: "Keeps your folders organized and finds anything fast. Windows, macOS and Linux." },
   deskmedic: { name: "DeskMedic", blurb: "Windows helpdesk toolkit: health check, disk map, cleanup and one-click remedies." },
   deskfolio: { name: "DeskFolio", blurb: "Offline PDF tool: view, sign, compress, convert and OCR. Windows, macOS and Linux." },
+  deskshot: { name: "DeskShot", blurb: "Offline screenshots: capture, mark up, blur, copy text and pin. Windows and macOS." },
 };
 
 export function DeskLabTools({ own }: { own: LabToolId }) {

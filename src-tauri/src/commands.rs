@@ -1089,6 +1089,7 @@ pub fn open_link(app: AppHandle, id: String) -> CmdResult<()> {
         "deskzero" => "https://github.com/imjagdeep/DeskZero/releases/latest",
         "deskmedic" => "https://github.com/imjagdeep/DeskMedic/releases/latest",
         "deskfolio" => "https://github.com/imjagdeep/DeskFolio/releases/latest",
+        "deskshot" => "https://github.com/imjagdeep/DeskShot/releases/latest",
         _ => return Err(format!("unknown link {id}")),
     };
     app.opener()

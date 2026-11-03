@@ -1,119 +1,17 @@
-/* The file browser, plus the per-system look. The base theme is the macOS
-   one; [data-os] (set from the Rust platform name) shifts fonts, accent,
-   corners and folder colours toward File Explorer or GNOME Files. */
+/* The file browser, in the DeskLab Daylight look (same on every system). */
 
 :root {
-  /* A plain folder's colour: Finder blue on macOS. */
-  --folder: #5aa9f0;
-  --tile-radius: 12px;
-  --bz-select: color-mix(in srgb, #0a84ff 18%, transparent);
-  --bz-select-ring: #0a84ff;
+  /* A plain folder's colour; kinds bring their own (--tile). */
+  --folder: #6f7cf6;
+  --tile-radius: 14px;
+  --bz-select: color-mix(in srgb, #5b6cff 16%, transparent);
+  --bz-select-ring: #5b6cff;
 }
-
-/* ---------- Windows 11: File Explorer ---------- */
-:root[data-os="windows"] {
-  font-family: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
-  font-size: 13.5px;
-  --folder: #f8c544;
-  --tile-radius: 6px;
-  --radius: 6px;
-  --sidebar: #f3f3f3;
-  --window: #f9f9f9;
-  --accent: #005fb8;
-  --accent-hover: #1a6fc2;
-  --accent-text: #ffffff;
-  --accent-soft: rgba(0, 95, 184, 0.14);
-  --accent-grad: linear-gradient(180deg, #1a6fc2 0%, #005fb8 100%);
-  --bz-select: rgba(0, 95, 184, 0.12);
-  --bz-select-ring: #005fb8;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-os="windows"]:not([data-theme="light"]) {
-    --sidebar: #202020;
-    --window: #272727;
-    --accent: #60cdff;
-    --accent-hover: #7fd6ff;
-    --accent-text: #001a2a;
-    --accent-soft: rgba(96, 205, 255, 0.16);
-    --accent-grad: linear-gradient(180deg, #7fd6ff 0%, #60cdff 100%);
-    --bz-select: rgba(96, 205, 255, 0.14);
-    --bz-select-ring: #60cdff;
-  }
-}
-:root[data-os="windows"][data-theme="dark"] {
-  --sidebar: #202020;
-  --window: #272727;
-  --accent: #60cdff;
-  --accent-hover: #7fd6ff;
-  --accent-text: #001a2a;
-  --accent-soft: rgba(96, 205, 255, 0.16);
-  --accent-grad: linear-gradient(180deg, #7fd6ff 0%, #60cdff 100%);
-  --bz-select: rgba(96, 205, 255, 0.14);
-  --bz-select-ring: #60cdff;
-}
-/* Explorer's navigation pane: a soft fill with a short accent bar, not a solid pill. */
-:root[data-os="windows"] .nav-item { border-radius: 4px; height: 32px; position: relative; }
-:root[data-os="windows"] .nav-item.active { background: var(--selected); color: var(--text); box-shadow: none; }
-:root[data-os="windows"] .nav-item.active svg { color: var(--accent); }
-:root[data-os="windows"] .nav-item.active::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 9px;
-  bottom: 9px;
-  width: 3px;
-  border-radius: 2px;
-  background: var(--accent);
-}
-:root[data-os="windows"] .segmented,
-:root[data-os="windows"] .segmented button,
-:root[data-os="windows"] button { border-radius: 4px; }
-
-/* ---------- Linux: GNOME Files (Adwaita) ---------- */
-:root[data-os="linux"] {
-  font-family: "Adwaita Sans", Cantarell, "Noto Sans", Ubuntu, system-ui, sans-serif;
-  --folder: #438de6;
-  --tile-radius: 12px;
-  --radius: 12px;
-  --sidebar: #ebebed;
-  --window: #fafafb;
-  --accent: #3584e4;
-  --accent-hover: #4a90e8;
-  --accent-text: #ffffff;
-  --accent-soft: rgba(53, 132, 228, 0.16);
-  --accent-grad: linear-gradient(180deg, #3584e4 0%, #3584e4 100%);
-  --bz-select: rgba(53, 132, 228, 0.16);
-  --bz-select-ring: #3584e4;
-}
-@media (prefers-color-scheme: dark) {
-  :root[data-os="linux"]:not([data-theme="light"]) {
-    --sidebar: #2e2e32;
-    --window: #222226;
-    --accent: #78aeed;
-    --accent-hover: #8cbaf0;
-    --accent-text: #0b1d33;
-    --accent-grad: linear-gradient(180deg, #78aeed 0%, #78aeed 100%);
-    --bz-select: rgba(120, 174, 237, 0.18);
-    --bz-select-ring: #78aeed;
-  }
-}
-:root[data-os="linux"][data-theme="dark"] {
-  --sidebar: #2e2e32;
-  --window: #222226;
-  --accent: #78aeed;
-  --accent-hover: #8cbaf0;
-  --accent-text: #0b1d33;
-  --accent-grad: linear-gradient(180deg, #78aeed 0%, #78aeed 100%);
-  --bz-select: rgba(120, 174, 237, 0.18);
-  --bz-select-ring: #78aeed;
-}
-:root[data-os="linux"] .nav-item { border-radius: 8px; }
-:root[data-os="linux"] .nav-item.active { background: var(--selected); color: var(--text); box-shadow: none; font-weight: 700; }
-:root[data-os="linux"] .nav-item.active svg { color: var(--text); }
 
 /* ---------- browser layout ---------- */
-.content.content-browse { overflow: hidden; display: flex; }
-.browser { flex: 1; min-width: 0; display: flex; flex-direction: column; outline: none; }
+/* The browser sits on one white card beside the sidebar, like DeskFolio's workspace. */
+.content.content-browse { overflow: hidden; display: flex; padding: 0 12px 12px; }
+.browser { flex: 1; min-width: 0; display: flex; flex-direction: column; outline: none; background: var(--window); border-radius: var(--radius-card); overflow: hidden; box-shadow: var(--shadow-sm); }
 
 .bz-toolbar {
   display: flex;
@@ -188,8 +86,7 @@ button.bz-icon:hover:not(:disabled) { background: var(--hover); filter: none; co
   padding: 8px 12px;
   margin-bottom: 6px;
   border-radius: var(--radius);
-  background: var(--group);
-  border: 0.5px solid var(--group-border);
+  background: var(--well);
   color: var(--text-2);
   font-size: 12.5px;
 }
@@ -261,9 +158,6 @@ button.bz-icon:hover:not(:disabled) { background: var(--hover); filter: none; co
   text-shadow: 0 1px 1px rgba(0, 0, 0, 0.2);
 }
 .bz-fplain em { font-style: normal; opacity: 0.9; }
-/* Windows folders are yellow: dark text reads better on them. */
-:root[data-os="windows"] .bz-folder.plain { color: #5b4300; }
-:root[data-os="windows"] .bz-folder.plain .bz-fplain { text-shadow: none; }
 
 .bz-sysicon { width: 64px; height: 64px; object-fit: contain; margin: 8px 0 4px; }
 .bz-glyph {
@@ -443,3 +337,21 @@ input.bz-rename:not([type="checkbox"]) {
 }
 .cleanup-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .cleanup-size { text-align: right; font-variant-numeric: tabular-nums; }
+
+/* DeskZero's own bits (kept out of the shared theme.css) */
+.spot-action { height: 22px; padding: 0 9px; font-size: 11px; border-radius: 7px; white-space: nowrap; background: color-mix(in srgb, var(--accent-text) 18%, transparent); color: var(--accent-text); border: 0; box-shadow: none; }
+.shortcut-list .shortcut-row { display: grid; grid-template-columns: minmax(150px, 1fr) auto auto; align-items: center; gap: 12px; min-height: 30px; }
+.shortcut-name { color: var(--text); }
+.shortcut-keys { display: flex; align-items: center; gap: 4px; justify-self: start; }
+.shortcut-keys > span { display: inline-flex; align-items: center; gap: 4px; }
+.shortcut-actions { display: flex; gap: 2px; justify-self: end; }
+
+/* Picking items in a list (Clean up): a real checkbox, not the settings switch. */
+input[type="checkbox"].pick { width: 18px; height: 18px; border-radius: 6px; background: var(--group); box-shadow: inset 0 0 0 1.5px var(--text-3); transition: background 0.12s; }
+input[type="checkbox"].pick::after { top: 3px; left: 6px; width: 4px; height: 8px; border-radius: 0; background: none; box-shadow: none; border: solid var(--accent-text); border-width: 0 2px 2px 0; transform: rotate(45deg); opacity: 0; transition: none; }
+input[type="checkbox"].pick:checked { background: var(--accent); box-shadow: none; }
+input[type="checkbox"].pick:checked::after { background: none; opacity: 1; transform: rotate(45deg); }
+input[type="checkbox"].pick:indeterminate { background: var(--accent); box-shadow: none; }
+input[type="checkbox"].pick:indeterminate::after { top: 8px; left: 4px; width: 10px; height: 0; border-width: 0 0 2px 0; transform: none; opacity: 1; }
+/* Search bar folders match the browser's folder colour. */
+.spot-icon.folder { color: var(--folder); background: color-mix(in srgb, var(--folder) 16%, transparent); }

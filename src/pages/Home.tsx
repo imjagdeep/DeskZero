@@ -63,45 +63,57 @@ export function Home() {
     return <FirstRun suggested={cfg.suggested_organize_root} />;
   }
 
+  const pending = status?.pending ?? 0;
+  const watching = status?.watching ?? [];
+  const where = watching.length === 1 ? fileName(watching[0].replace(/[\\/]+$/, "")) : `${watching.length} folders`;
+  const state = status?.paused ? "Paused" : watching.length ? `Watching ${where}` : "Not watching any folder";
+
   return (
-    <div className="page">
-      <PageHeader title="DeskZero">
+    <div className="page home-page">
+      <header className="home-head">
+        <div>
+          <p className="muted">{state}</p>
+          <h1>Your files, in order.</h1>
+        </div>
         <button onClick={() => api.openFolder(sf).catch(toastError)}>Open folder</button>
-      </PageHeader>
-      <p className="muted path-line" title={sf}>{sf}</p>
+      </header>
 
-      <div className={dragging ? "dropzone active" : "dropzone"}>
-        <div className="dropzone-icon"><DropIcon size={30} /></div>
-        <div className="dropzone-title">Drop files here</div>
-        <div className="muted small">or put them in your DeskZero: you'll see a preview before anything moves</div>
-      </div>
-
-      <div className="stats">
-        <div className="stat accent">
-          <span className="stat-icon"><ClockIcon size={20} /></span>
-          <span className="stat-num">{status?.pending ?? 0}</span>
-          <span className="stat-label">Files waiting</span>
-        </div>
-        <div className="stat ok">
-          <span className="stat-icon"><CheckCircleIcon size={20} /></span>
-          <span className="stat-num">{status?.organized_today ?? 0}</span>
-          <span className="stat-label">Organized today</span>
-        </div>
-        <div className={status && status.needs_attention > 0 ? "stat warn" : "stat"}>
-          <span className="stat-icon"><AlertIcon size={20} /></span>
-          <span className="stat-num">{status?.needs_attention ?? 0}</span>
-          <span className="stat-label">Need attention</span>
-        </div>
-      </div>
-
-      <div className="row">
-        <button className="primary big" onClick={showPending} disabled={!status || status.pending === 0}>
-          Organize Files
+      <div className="home-cards">
+        <button className={dragging ? "home-drop active" : "home-drop"} title={sf} onClick={() => api.openFolder(sf).catch(toastError)}>
+          <span className="home-drop-icon">
+            <DropIcon size={22} />
+          </span>
+          <strong>Drop files here</strong>
+          <span className="home-drop-hint">You'll see where each one goes before anything moves.</span>
         </button>
-        <button className="with-icon" onClick={() => api.setPaused(!status?.paused).then(refreshStatus).catch(toastError)}>
-          {status?.paused ? <PlayIcon size={15} /> : <PauseIcon size={15} />}
-          {status?.paused ? "Resume monitoring" : "Pause monitoring"}
-        </button>
+
+        <section className="home-waiting" aria-label="Files waiting">
+          <span className="home-card-title">
+            <ClockIcon size={15} /> Waiting
+          </span>
+          <span className="home-big">{pending}</span>
+          <span className="home-card-text">{pending === 1 ? "file to organize" : "files to organize"}</span>
+          <div className="home-waiting-actions">
+            <button className="primary" onClick={showPending} disabled={!status || pending === 0}>
+              Organize now
+            </button>
+            <button className="ghost with-icon" onClick={() => api.setPaused(!status?.paused).then(refreshStatus).catch(toastError)}>
+              {status?.paused ? <PlayIcon size={14} /> : <PauseIcon size={14} />}
+              {status?.paused ? "Resume" : "Pause"}
+            </button>
+          </div>
+        </section>
+
+        <section className="home-today" aria-label="Today">
+          <span className="home-card-title">
+            <CheckCircleIcon size={15} /> Today
+          </span>
+          <span className="home-big">{status?.organized_today ?? 0}</span>
+          <span className="home-card-text">organized</span>
+          <span className={status && status.needs_attention > 0 ? "home-attention warn" : "home-attention"}>
+            <AlertIcon size={14} /> {status?.needs_attention ?? 0} need attention
+          </span>
+        </section>
       </div>
       {status?.watcher_error && <p className="error-text">Watcher problem: {status.watcher_error}</p>}
 

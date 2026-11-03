@@ -24,7 +24,7 @@ import type {
   Status,
 } from "./types";
 
-export type LabToolId = "deskzero" | "deskmedic" | "deskfolio";
+export type LabToolId = "deskzero" | "deskmedic" | "deskfolio" | "deskshot";
 export interface LabTool {
   id: LabToolId;
   installed: boolean;

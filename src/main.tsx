@@ -3,6 +3,7 @@ import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App";
 import { Spotlight } from "./components/Spotlight";
+import "@fontsource-variable/plus-jakarta-sans";
 import "./styles/theme.css";
 import "./styles/shell.css";
 import "./styles/browse.css";

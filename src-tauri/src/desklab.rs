@@ -1,5 +1,5 @@
 //! The other DeskLab tools: whether one is installed, and starting it.
-//! Same file in DeskZero, DeskMedic and DeskFolio.
+//! Same file in every DeskLab app.
 //!
 //! Only the installers' default places are checked (no searching the disk):
 //! Windows `%LOCALAPPDATA%\<Name>\<id>.exe`, macOS `/Applications` or
@@ -10,10 +10,11 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-const TOOLS: [(&str, &str); 3] = [
+const TOOLS: [(&str, &str); 4] = [
     ("deskzero", "DeskZero"),
     ("deskmedic", "DeskMedic"),
     ("deskfolio", "DeskFolio"),
+    ("deskshot", "DeskShot"),
 ];
 
 #[derive(Debug, Serialize)]
@@ -100,7 +101,7 @@ mod tests {
     #[test]
     fn list_leaves_out_own_tool() {
         let ids: Vec<_> = list("deskfolio").iter().map(|t| t.id).collect();
-        assert_eq!(ids, ["deskzero", "deskmedic"]);
+        assert_eq!(ids, ["deskzero", "deskmedic", "deskshot"]);
     }
 
     #[test]

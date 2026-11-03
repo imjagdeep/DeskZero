@@ -1,9 +1,10 @@
 // The in-window menu bar (File, Edit, View, Help) for Windows and Linux;
 // on a Mac the same menus go into the system menu bar instead. Handles the
-// keyboard shortcuts too. `compact` shows one ☰ button instead (open = -1 is
-// the list of menus, open = i that menu). Same file in every DeskLab app.
+// keyboard shortcuts too. `compact` shows one ☰ button instead: open = -1 is
+// the list of menus, each opening beside it on hover or click; open = i shows
+// that menu in place (keyboard: Alt, arrows). Same file in every DeskLab app.
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { accelText, isCmd, isMac, isSub, matches, allCommands, runCmd, setNativeMenu, type Entry, type MenuDef } from "./menu";
 import { MenuChevron, MenuGlyph } from "./menuIcons";
 
@@ -154,28 +155,7 @@ export function MenuBar({ appName, menus, onError, compact = false }: { appName:
               <path d="M2.5 4h11M2.5 8h11M2.5 12h11" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
             </svg>
           </button>
-          {open === -1 && (
-            <div className="menu-pop" role="menu">
-              {menus.map((m, i) => (
-                <button
-                  key={m.label}
-                  className={hot === i ? "menu-row hot" : "menu-row"}
-                  role="menuitem"
-                  aria-haspopup="menu"
-                  onMouseDown={(e) => e.preventDefault()}
-                  onMouseEnter={() => setHot(i)}
-                  onClick={() => {
-                    setOpen(i);
-                    setHot(-1);
-                  }}
-                >
-                  <span className="menu-check" />
-                  <span className="menu-label">{m.label}</span>
-                  <MenuChevron />
-                </button>
-              ))}
-            </div>
-          )}
+          {open === -1 && <MenuList items={menus.map((m) => ({ label: m.label, items: m.items }))} hot={hot} setHot={setHot} close={() => setOpen(null)} onError={onError} />}
           {open !== null && open >= 0 && (
             <MenuList items={menus[open].items} hot={hot} setHot={setHot} close={() => setOpen(null)} onError={onError} title={menus[open].label} onBack={() => (setOpen(-1), setHot(-1))} />
           )}
@@ -231,8 +211,16 @@ function MenuList({
   onBack?: () => void;
 }) {
   const [subOpen, setSubOpen] = useState(-1);
+  const pop = useRef<HTMLDivElement>(null);
+  // A fly-out that would run past the bottom of the window moves up to fit.
+  useLayoutEffect(() => {
+    const el = pop.current;
+    if (!sub || !el) return;
+    const over = el.getBoundingClientRect().bottom - (window.innerHeight - 8);
+    if (over > 0) el.style.transform = `translateY(-${Math.ceil(over)}px)`;
+  }, [sub]);
   return (
-    <div className={sub ? "menu-pop menu-sub" : "menu-pop"} role="menu">
+    <div ref={pop} className={sub ? "menu-pop menu-sub" : "menu-pop"} role="menu">
       {onBack && (
         <button className="menu-row menu-back" onMouseDown={(e) => e.preventDefault()} onClick={onBack}>
           <span className="menu-check">‹</span>
@@ -245,12 +233,15 @@ function MenuList({
           return (
             <div
               key={e.label}
-              className={subOpen === i ? "menu-row has-sub hot" : "menu-row has-sub"}
+              className={subOpen === i || hot === i ? "menu-row has-sub hot" : "menu-row has-sub"}
               onMouseEnter={() => {
                 setSubOpen(i);
                 setHot(i);
               }}
               onMouseLeave={() => setSubOpen(-1)}
+              onMouseDown={(ev) => ev.preventDefault()}
+              // A click opens it too (clicks inside the fly-out bubble here harmlessly).
+              onClick={() => setSubOpen(i)}
               role="menuitem"
               aria-haspopup="menu"
             >

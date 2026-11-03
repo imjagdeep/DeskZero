@@ -90,13 +90,13 @@ export function CleanupSheet({
           return (
             <section key={g.id} className="cleanup-group">
               <label className="cleanup-group-head">
-                <input type="checkbox" checked={all} onChange={(e) => toggle(paths, e.target.checked)} />
+                <input type="checkbox" className="pick" checked={all} onChange={(e) => toggle(paths, e.target.checked)} />
                 <span>{g.title}</span>
                 <span className="muted small">{humanSize(g.items.reduce((n, i) => n + i.size_bytes, 0))}</span>
               </label>
               {g.items.map((it) => (
                 <label key={it.path} className="cleanup-row" title={it.path}>
-                  <input type="checkbox" checked={ticked.has(it.path)} onChange={(e) => toggle([it.path], e.target.checked)} />
+                  <input type="checkbox" className="pick" checked={ticked.has(it.path)} onChange={(e) => toggle([it.path], e.target.checked)} />
                   <span className="cleanup-name">{fileName(it.path)}</span>
                   <span className="muted small">{it.reason}</span>
                   <span className="muted small cleanup-size">{humanSize(it.size_bytes)}</span>
