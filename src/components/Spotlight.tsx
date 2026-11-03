@@ -46,9 +46,20 @@ export function Spotlight() {
         .desklabTools()
         .then((t) => setFolio(t.some((x) => x.id === "deskfolio" && x.installed)))
         .catch(() => setFolio(false));
+    // Same Light/Dark choice as the main window ("system" = the media query decides).
+    const applyTheme = () =>
+      api
+        .getConfig()
+        .then((c) => {
+          if (c.settings.theme === "system") document.documentElement.removeAttribute("data-theme");
+          else document.documentElement.setAttribute("data-theme", c.settings.theme);
+        })
+        .catch(() => document.documentElement.removeAttribute("data-theme"));
     void checkFolio();
+    void applyTheme();
     const unShown = listen("spotlight-shown", () => {
       void checkFolio();
+      void applyTheme();
       setError("");
       input.current?.focus();
       input.current?.select();

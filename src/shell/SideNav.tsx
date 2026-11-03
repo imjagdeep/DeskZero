@@ -36,8 +36,8 @@ export function SideNav<P extends string>({
   groups: NavGroup<P>[];
   page: P;
   onNavigate: (p: P) => void;
-  /** Status line at the bottom; its first child (a dot) stays when compact. */
-  foot: React.ReactNode;
+  /** Status line at the bottom (optional); its first child (a dot) stays when compact. */
+  foot?: React.ReactNode;
   footTitle?: string;
 }) {
   const chosen = useCompactSidebar();
@@ -89,9 +89,11 @@ export function SideNav<P extends string>({
           ))}
         </div>
       ))}
-      <div className="sidebar-foot" title={footTitle}>
-        {foot}
-      </div>
+      {foot && (
+        <div className="sidebar-foot" title={footTitle}>
+          {foot}
+        </div>
+      )}
     </nav>
   );
 }
