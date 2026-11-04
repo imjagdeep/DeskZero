@@ -37,12 +37,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          # One Mac job builds Apple Silicon, then Intel (the step after
+          # tauri-action). Two Mac jobs kept losing one: GitHub cancelled the
+          # second before it started (0.4.9, 0.9.1).
           - platform: macos-latest
             args: --target aarch64-apple-darwin
-            rust_targets: aarch64-apple-darwin
-          - platform: macos-latest
-            args: --target x86_64-apple-darwin
-            rust_targets: x86_64-apple-darwin
+            rust_targets: aarch64-apple-darwin,x86_64-apple-darwin
           - platform: ubuntu-22.04
             args: ""
             rust_targets: ""
@@ -103,6 +103,28 @@ jobs:
         with:
           releaseId: ${{ needs.create-release.outputs.release_id }}
           args: ${{ matrix.args }}
+          # Parallel jobs editing one latest.json raced (v0.3.2 lost Linux and
+          # macOS). The publish job writes it once from the .sig files instead.
+          uploadUpdaterJson: false
+
+      - name: Intel Mac build
+        if: runner.os == 'macOS'
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # macOS: sign with the Developer ID certificate, then notarize with
+          # the App Store Connect API key, so Gatekeeper opens it without a warning.
+          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
+          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
+          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
+          APPLE_API_KEY: ${{ secrets.APPLE_API_KEY }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # Signs the update packages; the matching public key is in tauri.conf.json.
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ""
+        with:
+          releaseId: ${{ needs.create-release.outputs.release_id }}
+          args: --target x86_64-apple-darwin
           # Parallel jobs editing one latest.json raced (v0.3.2 lost Linux and
           # macOS). The publish job writes it once from the .sig files instead.
           uploadUpdaterJson: false
